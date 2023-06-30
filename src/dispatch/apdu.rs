@@ -44,7 +44,7 @@ where
         // FIDO-over-CCID does not seem to officially be a thing; we don't support it.
         // If we would, need to review the following cases catering to semi-documented U2F legacy.
         if interface != apdu::Interface::Contactless {
-            return Err(Status::ConditionsOfUseNotSatisfied);
+            return Err(Status::CONDITION_OF_USE_NOT_SATISFIED);
         }
 
         let instruction: u8 = apdu.instruction().into();
@@ -69,7 +69,7 @@ where
                     Ok(ctaphid::Command::Deselect) => self.deselect(),
                     _ => {
                         info!("Unsupported ins for fido app {:02x}", instruction);
-                        return Err(iso7816::Status::InstructionNotSupportedOrInvalid);
+                        return Err(iso7816::Status::INSTRUCTION_NOT_SUPPORTED_OR_INVALID);
                     }
                 }
             }

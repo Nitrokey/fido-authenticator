@@ -1,7 +1,7 @@
 //! The `ctap_types::ctap1::Authenticator` implementation.
 
 use ctap_types::{
-    ctap1::{authenticate, register, Authenticator, ControlByte, Error, Result},
+    ctap1::{authenticate, register, Authenticator, ControlByte, Result, Status},
     heapless_bytes::Bytes,
 };
 
@@ -36,7 +36,7 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
     fn register(&mut self, reg: &register::Request) -> Result<register::Response> {
         self.up
             .user_present(&mut self.trussed, constants::U2F_UP_TIMEOUT)
-            .map_err(|_| Error::ConditionsOfUseNotSatisfied)?;
+            .map_err(|_| Status::CONDITION_OF_USE_NOT_SATISFIED)?;
 
         // Generate a new P256 key pair.
         let private_key = syscall!(self.trussed.generate_p256_private_key(Location::Volatile)).key;
@@ -57,7 +57,7 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
             .state
             .persistent
             .key_wrapping_key(&mut self.trussed)
-            .map_err(|_| Error::UnspecifiedCheckingError)?;
+            .map_err(|_| Status(0x6700))?;
         // debug!("wrapping u2f private key");
 
         let wrapped_key =
@@ -69,11 +69,7 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
 
         syscall!(self.trussed.delete(private_key));
 
-        let key = Key::WrappedKey(
-            wrapped_key
-                .to_bytes()
-                .map_err(|_| Error::UnspecifiedCheckingError)?,
-        );
+        let key = Key::WrappedKey(wrapped_key.to_bytes().map_err(|_| Status(0x6700))?);
         let nonce = syscall!(self.trussed.random_bytes(12))
             .bytes
             .as_slice()
@@ -108,7 +104,7 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
             self.state
                 .persistent
                 .timestamp(&mut self.trussed)
-                .map_err(|_| Error::NotEnoughMemory)?,
+                .map_err(|_| Status::NOT_ENOUGH_MEMORY_IN_FILE)?,
             None,
             None,
             nonce,
@@ -121,10 +117,10 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
             .state
             .persistent
             .key_encryption_key(&mut self.trussed)
-            .map_err(|_| Error::NotEnoughMemory)?;
+            .map_err(|_| Status::NOT_ENOUGH_MEMORY_IN_FILE)?;
         let credential_id = credential
             .id(&mut self.trussed, kek, Some(&reg.app_id))
-            .map_err(|_| Error::NotEnoughMemory)?;
+            .map_err(|_| Status::NOT_ENOUGH_MEMORY_IN_FILE)?;
 
         let mut commitment = Commitment::new();
 
@@ -158,7 +154,7 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
             }
             _ => {
                 info!("Not provisioned with attestation key!");
-                return Err(Error::KeyReferenceNotFound);
+                return Err(Status::REFERENCE_NOT_FOUND);
             }
         };
 
@@ -180,23 +176,23 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
                 // the U2F token is supposed to simply check whether the
                 // provided key handle was originally created by this token
                 return if cred.is_ok() {
-                    Err(Error::ConditionsOfUseNotSatisfied)
+                    Err(Status::CONDITION_OF_USE_NOT_SATISFIED)
                 } else {
-                    Err(Error::IncorrectDataParameter)
+                    Err(Status::INCORRECT_PARAMETERS)
                 };
             }
             ControlByte::EnforceUserPresenceAndSign => {
                 if !self.skip_up_check() {
                     self.up
                         .user_present(&mut self.trussed, constants::U2F_UP_TIMEOUT)
-                        .map_err(|_| Error::ConditionsOfUseNotSatisfied)?;
+                        .map_err(|_| Status::CONDITION_OF_USE_NOT_SATISFIED)?;
                 }
                 0x01
             }
             ControlByte::DontEnforceUserPresenceAndSign => 0x00,
         };
 
-        let cred = cred.map_err(|_| Error::IncorrectDataParameter)?;
+        let cred = cred.map_err(|_| Status::INCORRECT_PARAMETERS)?;
 
         let key = match &cred.key {
             Key::WrappedKey(bytes) => {
@@ -204,7 +200,7 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
                     .state
                     .persistent
                     .key_wrapping_key(&mut self.trussed)
-                    .map_err(|_| Error::IncorrectDataParameter)?;
+                    .map_err(|_| Status::INCORRECT_PARAMETERS)?;
                 let key_result = syscall!(self.trussed.unwrap_key_chacha8poly1305(
                     wrapping_key,
                     bytes,
@@ -219,23 +215,23 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
                     }
                     None => {
                         info!("issue with unwrapping credential id key");
-                        return Err(Error::IncorrectDataParameter);
+                        return Err(Status::INCORRECT_PARAMETERS);
                     }
                 }
             }
-            _ => return Err(Error::IncorrectDataParameter),
+            _ => return Err(Status::INCORRECT_PARAMETERS),
         };
 
         if cred.algorithm != -7 {
             info!("Unexpected mechanism for u2f");
-            return Err(Error::IncorrectDataParameter);
+            return Err(Status::INCORRECT_PARAMETERS);
         }
 
         let sig_count = self
             .state
             .persistent
             .timestamp(&mut self.trussed)
-            .map_err(|_| Error::UnspecifiedNonpersistentExecutionError)?;
+            .map_err(|_| Status::EXECUTION_ERROR)?;
 
         let mut commitment = Commitment::new();
 
