@@ -324,7 +324,7 @@ impl Credential {
         let data = &mut stripped.data;
 
         data.rp.name = None;
-        data.rp.url = None;
+        data.rp.icon = None;
 
         data.user.icon = None;
         data.user.name = None;
