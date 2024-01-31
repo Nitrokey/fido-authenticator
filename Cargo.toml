@@ -29,6 +29,7 @@ trussed-chunked = { version = "0.1.0", optional = true }
 apdu-dispatch = { version = "0.1", optional = true }
 ctaphid-dispatch = { version = "0.1", optional = true }
 iso7816 = { version = "0.1", optional = true }
+serde_bytes = { version = "0.11.14", default-features = false }
 
 [features]
 dispatch = ["apdu-dispatch", "ctaphid-dispatch", "iso7816"]
@@ -51,6 +52,7 @@ delog = { version = "0.1.6", features = ["std-log"] }
 env_logger = "0.11.0"
 interchange = "0.3.0"
 log = "0.4.21"
+hex-literal = "0.4.1"
 # quickcheck = "1"
 rand = "0.8.4"
 serde_cbor = { version = "0.11.0", features = ["std"] }
@@ -64,6 +66,7 @@ usbd-ctaphid = "0.1.0"
 features = ["dispatch"]
 
 [patch.crates-io]
+cbor-smol = { git = "https://github.com/sosthene-nitrokey/cbor-smol.git", rev = "94ee8c28edf9248b402aa4335c1dee157995197b"}
 ctap-types = { git = "https://github.com/trussed-dev/ctap-types.git", rev = "4846817d9cd44604121680a19d46f3264973a3ce" }
 ctaphid-dispatch = { git = "https://github.com/trussed-dev/ctaphid-dispatch.git", rev = "57cb3317878a8593847595319aa03ef17c29ec5b" }
 apdu-dispatch = { git = "https://github.com/trussed-dev/apdu-dispatch.git", rev = "915fc237103fcecc29d0f0b73391f19abf6576de" }
