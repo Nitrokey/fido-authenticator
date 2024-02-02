@@ -18,6 +18,8 @@
 extern crate delog;
 generate_macros!();
 
+pub use state::migrate;
+
 use core::time::Duration;
 
 use trussed::{client, syscall, types::Message, Client as TrussedClient};
