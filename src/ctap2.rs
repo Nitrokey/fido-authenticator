@@ -394,7 +394,7 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
                 .ok();
 
             let mut key_store_full = self.can_fit(serialized_credential.len()) == Some(false)
-                || CredentialManagement::new(self).count_credentials()
+                || CredentialManagement::new(self).count_credentials()?
                     >= self
                         .config
                         .max_resident_credential_count
@@ -916,7 +916,7 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
         // TODO: use custom enum of known commands
         match parameters.sub_command {
             // 0x1
-            Subcommand::GetCredsMetadata => Ok(cred_mgmt.get_creds_metadata()),
+            Subcommand::GetCredsMetadata => cred_mgmt.get_creds_metadata(),
 
             // 0x2
             Subcommand::EnumerateRpsBegin => cred_mgmt.first_relying_party(),
@@ -1013,7 +1013,7 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
         // If no allowList is passed, credential is None and the retrieved credentials
         // are stored in state.runtime.credential_heap
         let (credential, num_credentials) = self
-            .prepare_credentials(&rp_id_hash, &parameters.allow_list, uv_performed)
+            .prepare_credentials(&rp_id_hash, &parameters.allow_list, uv_performed)?
             .ok_or(Error::NoCredentials)?;
 
         info_now!("found {:?} applicable credentials", num_credentials);
@@ -1154,7 +1154,7 @@ impl<UP: UserPresence, T: TrussedRequirements> crate::Authenticator<UP, T> {
         rp_id_hash: &[u8; 32],
         allow_list: &Option<ctap2::get_assertion::AllowList>,
         uv_performed: bool,
-    ) -> Option<(Credential, u32)> {
+    ) -> Result<Option<(Credential, u32)>> {
         debug_now!("remaining stack size: {} bytes", msp() - 0x2000_0000);
 
         self.state.runtime.clear_credential_cache();
@@ -1188,50 +1188,74 @@ impl<UP: UserPresence, T: TrussedRequirements> crate::Authenticator<UP, T> {
                         continue;
                     }
 
-                    return Some((credential, 1));
+                    return Ok(Some((credential, 1)));
                 }
 
                 // we don't recognize any credentials in the allowlist
-                return None;
+                return Ok(None);
             }
         }
 
         // we are only dealing with discoverable credentials.
         debug_now!("Allowlist not passed, fetching RKs");
+        self.prepare_cache(rp_id_hash, uv_performed)?;
 
-        let mut maybe_path =
-            syscall!(self
-                .trussed
-                .read_dir_first(Location::Internal, rp_rk_dir(rp_id_hash), None,))
-            .entry
-            .map(|entry| PathBuf::from(entry.path()));
+        let num_credentials = self.state.runtime.remaining_credentials();
+        let credential = self.state.runtime.pop_credential(&mut self.trussed);
+        Ok(credential.map(|credential| (Credential::Full(credential), num_credentials)))
+    }
 
+    /// Populate the cache with the RP credentials.
+    ///
+    /// Returns true if legacy credentials are present and therefore prepare_cache_legacy should be called too
+    #[inline(never)]
+    fn prepare_cache(&mut self, rp_id_hash: &[u8; 32], uv_performed: bool) -> Result<()> {
         use crate::state::CachedCredential;
         use core::str::FromStr;
 
-        while let Some(path) = maybe_path {
-            let credential_data =
-                syscall!(self.trussed.read_file(Location::Internal, path.clone(),)).data;
+        let rp_rk_dir = rp_rk_dir(rp_id_hash);
+        let mut maybe_entry = syscall!(self.trussed.read_dir_first_alphabetical(
+            Location::Internal,
+            PathBuf::from(RK_DIR),
+            Some(rp_rk_dir.clone())
+        ))
+        .entry;
 
-            let credential = FullCredential::deserialize(&credential_data).ok()?;
+        while let Some(entry) = maybe_entry.take() {
+            if !entry.path().as_ref().starts_with(rp_rk_dir.as_ref()) {
+                // We got past all credentials for the relevant RP
+                break;
+            }
+
+            if entry.path() == &*rp_rk_dir {
+                debug_assert!(entry.metadata().is_dir());
+                error!("Migration missing");
+                return Err(Error::Other);
+            }
+
+            let credential_data = syscall!(self
+                .trussed
+                .read_file(Location::Internal, entry.path().into(),))
+            .data;
+
+            let credential = FullCredential::deserialize(&credential_data).map_err(|_err| {
+                error!("Failed to deserialize credential: {_err:?}");
+                Error::Other
+            })?;
             let timestamp = credential.creation_time;
             let credential = Credential::Full(credential);
 
             if self.check_credential_applicable(&credential, false, uv_performed) {
                 self.state.runtime.push_credential(CachedCredential {
                     timestamp,
-                    path: String::from_str(path.as_str_ref_with_trailing_nul()).ok()?,
+                    path: String::from_str(entry.path().as_str_ref_with_trailing_nul())
+                        .map_err(|_| Error::Other)?,
                 });
             }
 
-            maybe_path = syscall!(self.trussed.read_dir_next())
-                .entry
-                .map(|entry| PathBuf::from(entry.path()));
+            maybe_entry = syscall!(self.trussed.read_dir_next()).entry;
         }
-
-        let num_credentials = self.state.runtime.remaining_credentials();
-        let credential = self.state.runtime.pop_credential(&mut self.trussed);
-        credential.map(|credential| (Credential::Full(credential), num_credentials))
+        Ok(())
     }
 
     fn decrypt_pin_hash_and_maybe_escalate(
@@ -2080,11 +2104,12 @@ fn rp_rk_dir(rp_id_hash: &[u8; 32]) -> PathBuf {
 }
 
 fn rk_path(rp_id_hash: &[u8; 32], credential_id_hash: &[u8; 32]) -> PathBuf {
-    let mut path = rp_rk_dir(rp_id_hash);
+    let mut buf = [0; 33];
+    buf[16] = b'.';
+    format_hex(&rp_id_hash[..8], &mut buf[..16]);
+    format_hex(&credential_id_hash[..8], &mut buf[17..]);
 
-    let mut hex = [0u8; 16];
-    format_hex(&credential_id_hash[..8], &mut hex);
-    path.push(&PathBuf::try_from(&hex).unwrap());
-
+    let mut path = PathBuf::from(RK_DIR);
+    path.push(&PathBuf::try_from(buf.as_slice()).unwrap());
     path
 }
