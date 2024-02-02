@@ -1941,11 +1941,10 @@ fn rp_rk_dir(rp_id_hash: &Bytes<32>) -> PathBuf {
 }
 
 fn rk_path(rp_id_hash: &Bytes<32>, credential_id_hash: &Bytes<32>) -> PathBuf {
-    let mut path = rp_rk_dir(rp_id_hash);
+    let mut buf = [0; 33];
+    buf[16] = b'.';
+    format_hex(&rp_id_hash[..8], &mut buf[..16]);
+    format_hex(&credential_id_hash[..8], &mut buf[17..]);
 
-    let mut hex = [0u8; 16];
-    format_hex(&credential_id_hash[..8], &mut hex);
-    path.push(&PathBuf::from(&hex));
-
-    path
+    PathBuf::from(buf.as_slice())
 }
