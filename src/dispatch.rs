@@ -175,10 +175,10 @@ where
 
     // Goal of these nested scopes is to keep stack small.
     let ctap_request = ctap2::Request::deserialize(data)
-        .map(|request| {
-            info!("Received CTAP2 request {:?}", request_operation(&request));
+        .inspect(|request| {
+            info!("Received CTAP2 request {:?}", request_operation(request));
             trace!("CTAP2 request: {:?}", request);
-            request
+            let _ = request;
         })
         .map_err(|error| {
             error!("Failed to deserialize CTAP2 request: {:?}", error);
@@ -189,10 +189,10 @@ where
     use ctap2::Authenticator;
     authenticator
         .call_ctap2(&ctap_request)
-        .map(|response| {
-            info!("Sending CTAP2 response {:?}", response_operation(&response));
+        .inspect(|response| {
+            info!("Sending CTAP2 response {:?}", response_operation(response));
             trace!("CTAP2 response: {:?}", response);
-            response
+            let _ = response;
         })
         .map_err(|error| {
             info!("CTAP2 error: {:?}", error);

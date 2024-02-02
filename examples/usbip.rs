@@ -32,7 +32,6 @@ impl trussed_usbip::Apps<'static, VirtClient, Dispatcher> for FidoApp {
             #[cfg(feature = "chunked")]
             max_size: 4096,
         });
-
         FidoApp {
             fido: fido_authenticator::Authenticator::new(
                 builder.build(

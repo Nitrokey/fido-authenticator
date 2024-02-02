@@ -27,6 +27,7 @@ trussed = "0.1"
 trussed-fs-info = "0.1.0"
 trussed-hkdf = { version = "0.2.0" }
 trussed-chunked = { version = "0.1.0", optional = true }
+littlefs2 = { version = "0.4.0" }
 
 apdu-dispatch = { version = "0.1", optional = true }
 ctaphid-dispatch = { version = "0.1", optional = true }
@@ -49,6 +50,7 @@ log-warn = []
 log-error = []
 
 [dev-dependencies]
+admin-app = { version = "0.1.0", features = ["migration-tests"] }
 aes = "0.8.4"
 cbc = { version = "0.1.2", features = ["alloc"] }
 ciborium = { version = "0.2.2" }
@@ -76,14 +78,16 @@ x509-parser = "0.16.0"
 features = ["dispatch"]
 
 [patch.crates-io]
+admin-app = { git = "https://github.com/Nitrokey/admin-app.git", rev = "b2df7c068f889337eb57ce8646ded9418b5ec773" }
+apdu-dispatch = { git = "https://github.com/trussed-dev/apdu-dispatch.git", rev = "915fc237103fcecc29d0f0b73391f19abf6576de" }
 cbor-smol = { git = "https://github.com/sosthene-nitrokey/cbor-smol.git", rev = "9a77dc9b528b08f531d76b44af2f5336c4ef17e0"}
 ctaphid-dispatch = { git = "https://github.com/trussed-dev/ctaphid-dispatch.git", rev = "57cb3317878a8593847595319aa03ef17c29ec5b" }
-apdu-dispatch = { git = "https://github.com/trussed-dev/apdu-dispatch.git", rev = "915fc237103fcecc29d0f0b73391f19abf6576de" }
-trussed = { git = "https://github.com/trussed-dev/trussed.git", rev = "a055e4f79a10122c8c0c882161442e6e02f0c5c6" }
 littlefs2 = { git = "https://github.com/trussed-dev/littlefs2.git", rev = "960e57d9fc0d209308c8e15dc26252bbe1ff6ba8" }
+trussed = { git = "https://github.com/trussed-dev/trussed.git", rev = "a055e4f79a10122c8c0c882161442e6e02f0c5c6" }
 trussed-chunked = { git = "https://github.com/trussed-dev/trussed-staging.git", tag = "chunked-v0.1.0" }
 trussed-fs-info = { git = "https://github.com/trussed-dev/trussed-staging.git", rev = "170ab14f3bb6760399749d78e1b94e3b70106739" }
 trussed-hkdf = { git = "https://github.com/trussed-dev/trussed-staging.git", tag = "hkdf-v0.2.0" }
-trussed-staging = { git = "https://github.com/trussed-dev/trussed-staging.git", rev = "170ab14f3bb6760399749d78e1b94e3b70106739" }
+trussed-manage = { git = "https://github.com/trussed-dev/trussed-staging.git", tag = "v0.3.0" }
+trussed-staging = { git = "https://github.com/trussed-dev/trussed-staging.git", tag = "v0.3.1" }
 trussed-usbip = { git = "https://github.com/Nitrokey/pc-usbip-runner.git", tag = "v0.0.1-nitrokey.1" }
 usbd-ctaphid = { git = "https://github.com/trussed-dev/usbd-ctaphid.git", rev = "dcff9009c3cd1ef9e5b09f8f307aca998fc9a8c8" }
