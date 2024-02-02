@@ -53,6 +53,7 @@ log-warn = []
 log-error = []
 
 [dev-dependencies]
+admin-app = { version = "0.1.0", features = ["migration-tests"] }
 aes = "0.8.4"
 cbc = { version = "0.1.2", features = ["alloc"] }
 ciborium = { version = "0.2.2" }
@@ -80,11 +81,13 @@ x509-parser = "0.16.0"
 features = ["dispatch"]
 
 [patch.crates-io]
+admin-app = { git = "https://github.com/Nitrokey/admin-app.git", tag = "v0.1.0-nitrokey.18" }
 ctaphid-dispatch = { git = "https://github.com/trussed-dev/ctaphid-dispatch.git", rev = "57cb3317878a8593847595319aa03ef17c29ec5b" }
 trussed = { git = "https://github.com/trussed-dev/trussed.git", rev = "046478b7a4f6e2315acf9112d98308379c2e3eee" }
 trussed-chunked = { git = "https://github.com/trussed-dev/trussed-staging.git", tag = "chunked-v0.1.0" }
 trussed-fs-info = { git = "https://github.com/trussed-dev/trussed-staging.git", rev = "fs-info-v0.1.0" }
 trussed-hkdf = { git = "https://github.com/trussed-dev/trussed-staging.git", tag = "hkdf-v0.2.0" }
+trussed-manage = { git = "https://github.com/trussed-dev/trussed-staging.git", tag = "manage-v0.1.0" }
 trussed-staging = { git = "https://github.com/trussed-dev/trussed-staging.git", rev = "53eba84d2cd0bcacc3a7096d4b7a2490dcf6f069" }
 trussed-usbip = { git = "https://github.com/Nitrokey/pc-usbip-runner.git", tag = "v0.0.1-nitrokey.5" }
 usbd-ctaphid = { git = "https://github.com/trussed-dev/usbd-ctaphid.git", rev = "dcff9009c3cd1ef9e5b09f8f307aca998fc9a8c8" }

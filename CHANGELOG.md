@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Support CTAP 2.1
 - Serialize PIN hash with `serde-bytes` ([#52][])
 - Reduce the space taken by credential serializaiton ([#59][])
+- Remove the per-relying party directory to save space ([#55][])
 
 [#26]: https://github.com/solokeys/fido-authenticator/issues/26
 [#28]: https://github.com/solokeys/fido-authenticator/issues/28
@@ -41,6 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 [#63]: https://github.com/Nitrokey/fido-authenticator/pull/63
 [#52]: https://github.com/Nitrokey/fido-authenticator/issues/52
 [#59]: https://github.com/Nitrokey/fido-authenticator/issues/59
+[#55]: https://github.com/Nitrokey/fido-authenticator/issues/55
 
 ## [0.1.1] - 2022-08-22
 - Fix bug that treated U2F payloads as APDU over APDU in NFC transport @conorpp
