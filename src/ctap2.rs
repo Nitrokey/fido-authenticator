@@ -1128,7 +1128,69 @@ impl<UP: UserPresence, T: TrussedRequirements> crate::Authenticator<UP, T> {
 
         // we are only dealing with discoverable credentials.
         debug_now!("Allowlist not passed, fetching RKs");
+        let legacy_present = self.prepare_cache(rp_id_hash, uv_performed)?;
+        if legacy_present {
+            self.prepare_cache_legacy(rp_id_hash, uv_performed)?;
+        }
 
+        let num_credentials = self.state.runtime.remaining_credentials();
+        let credential = self.state.runtime.pop_credential(&mut self.trussed);
+        credential.map(|credential| (Credential::Full(credential), num_credentials))
+    }
+
+    /// Populate the cache with the RP credentials.
+    ///
+    /// Returns true if legacy credentials are present and therefore prepare_cache_legacy should be called too
+    #[inline(never)]
+    fn prepare_cache(&mut self, rp_id_hash: &Bytes<32>, uv_performed: bool) -> Option<bool> {
+        use crate::state::CachedCredential;
+        use core::str::FromStr;
+
+        let rp_rk_dir = rp_rk_dir(rp_id_hash);
+        let mut maybe_entry = syscall!(self.trussed.read_dir_first(
+            Location::Internal,
+            PathBuf::from(b"rk"),
+            Some(rp_rk_dir.clone())
+        ))
+        .entry;
+
+        let mut legacy_detected = false;
+        while let Some(entry) = maybe_entry.take() {
+            if !entry.path().as_ref().starts_with(rp_rk_dir.as_ref()) {
+                // We got past all credentials for the relevant RP
+                break;
+            }
+
+            if entry.path() == &*rp_rk_dir {
+                debug_assert!(entry.metadata().is_dir());
+                legacy_detected = true;
+                continue;
+            }
+
+            let credential_data = syscall!(self
+                .trussed
+                .read_file(Location::Internal, entry.path().into(),))
+            .data;
+
+            let credential = FullCredential::deserialize(&credential_data).ok()?;
+            let timestamp = credential.creation_time;
+            let credential = Credential::Full(credential);
+
+            if self.check_credential_applicable(&credential, false, uv_performed) {
+                self.state.runtime.push_credential(CachedCredential {
+                    timestamp,
+                    path: String::from_str(entry.path().as_str_ref_with_trailing_nul()).ok()?,
+                });
+            }
+
+            maybe_entry = syscall!(self.trussed.read_dir_next()).entry;
+        }
+        Some(legacy_detected)
+    }
+
+    /// Populate the cache with the legacy `rp_id/cred_id` rk
+    #[inline(never)]
+    fn prepare_cache_legacy(&mut self, rp_id_hash: &Bytes<32>, uv_performed: bool) -> Option<()> {
         let mut maybe_path =
             syscall!(self
                 .trussed
@@ -1158,10 +1220,7 @@ impl<UP: UserPresence, T: TrussedRequirements> crate::Authenticator<UP, T> {
                 .entry
                 .map(|entry| PathBuf::from(entry.path()));
         }
-
-        let num_credentials = self.state.runtime.remaining_credentials();
-        let credential = self.state.runtime.pop_credential(&mut self.trussed);
-        credential.map(|credential| (Credential::Full(credential), num_credentials))
+        Some(())
     }
 
     fn decrypt_pin_hash_and_maybe_escalate(
@@ -1946,5 +2005,7 @@ fn rk_path(rp_id_hash: &Bytes<32>, credential_id_hash: &Bytes<32>) -> PathBuf {
     format_hex(&rp_id_hash[..8], &mut buf[..16]);
     format_hex(&credential_id_hash[..8], &mut buf[17..]);
 
-    PathBuf::from(buf.as_slice())
+    let mut path = PathBuf::from("rk");
+    path.push(&PathBuf::from(buf.as_slice()));
+    path
 }
