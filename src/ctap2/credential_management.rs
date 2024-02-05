@@ -1,6 +1,6 @@
 //! TODO: T
 
-use core::convert::TryFrom;
+use core::{convert::TryFrom, num::NonZeroU32};
 
 use trussed::{
     syscall,
@@ -55,6 +55,16 @@ where
     pub fn new(authnr: &'a mut Authenticator<UP, T>) -> Self {
         Self { authnr }
     }
+}
+
+/// Get the hex hashed ID of the RP from the filename of a RP directory OR a "new" RK path
+fn get_id_hex(entry: &DirEntry) -> &str {
+    entry
+        .file_name()
+        .as_str()
+        .split('.')
+        .next()
+        .expect("Split always returns at least one empty string")
 }
 
 impl<UP, T> CredentialManagement<'_, UP, T>
@@ -118,78 +128,76 @@ where
     pub fn first_relying_party(&mut self) -> Result<Response> {
         info!("first rp");
 
-        // rp (0x03): PublicKeyCredentialRpEntity
-        // rpIDHash (0x04) : RP ID SHA-256 hash.
-        // totalRPs (0x05) : Total number of RPs present on the authenticator.
-
-        let mut response: Response = Default::default();
-
+        let mut response = Response::default();
         let dir = PathBuf::from(b"rk");
 
         let maybe_first_rp =
-            syscall!(self.trussed.read_dir_first(Location::Internal, dir, None)).entry;
-
-        response.total_rps = Some(match maybe_first_rp {
-            None => 0,
-            _ => {
-                let mut num_rps = 1;
-                loop {
-                    let maybe_next_rp = syscall!(self.trussed.read_dir_next()).entry;
-                    match maybe_next_rp {
-                        None => break,
-                        _ => num_rps += 1,
-                    }
-                }
-                num_rps
-            }
-        });
-
-        if let Some(rp) = maybe_first_rp {
-            // load credential and extract rp and rpIdHash
-            let maybe_first_credential = syscall!(self.trussed.read_dir_first(
-                Location::Internal,
-                PathBuf::from(rp.path()),
-                None
-            ))
+            syscall!(self
+                .trussed
+                .read_dir_first(Location::Internal, dir.clone(), None))
             .entry;
 
-            match maybe_first_credential {
-                None => panic!("chaos! disorder!"),
-                Some(rk_entry) => {
-                    let serialized = syscall!(self
-                        .trussed
-                        .read_file(Location::Internal, rk_entry.path().into(),))
-                    .data;
+        let Some(first_rp) = maybe_first_rp else {
+            response.total_rps = Some(0);
+            return Ok(response);
+        };
 
-                    let credential = FullCredential::deserialize(&serialized)
-                        // this may be a confusing error message
-                        .map_err(|_| Error::InvalidCredential)?;
+        // The first one counts
+        let mut total_rps = 1;
 
-                    let rp = credential.data.rp;
+        let first_credential_data;
+        if first_rp.metadata().is_dir() {
+            first_credential_data = syscall!(self.trussed.read_dir_files_first(
+                Location::Internal,
+                first_rp.path().into(),
+                None
+            ))
+            .data
+            .expect("RP directory is expected to never be empty");
 
-                    response.rp_id_hash = Some(self.hash(rp.id.as_ref()));
-                    response.rp = Some(rp);
-                }
-            }
+            // Restart the iteration over the directory
+            syscall!(self.trussed.read_dir_first(Location::Internal, dir, None));
+        } else {
+            debug_assert!(first_rp.metadata().is_file());
+            first_credential_data = syscall!(self
+                .trussed
+                .read_file(Location::Internal, first_rp.path().into()))
+            .data;
+        }
 
-            // cache state for next call
-            if let Some(total_rps) = response.total_rps {
-                if total_rps > 1 {
-                    let rp_id_hash = response.rp_id_hash.as_ref().unwrap().clone();
-                    self.state.runtime.cached_rp = Some(CredentialManagementEnumerateRps {
-                        remaining: total_rps - 1,
-                        rp_id_hash,
-                    });
-                }
+        let credential = FullCredential::deserialize(&first_credential_data)?;
+        let rp_id_hash = syscall!(self.trussed.hash_sha256(credential.rp.id.as_ref()))
+            .hash
+            .to_bytes()
+            .map_err(|_| Error::Other)?;
+
+        let mut current_rp = first_rp;
+
+        let mut current_id_hex = get_id_hex(&current_rp);
+
+        while let Some(entry) = syscall!(self.trussed.read_dir_next()).entry {
+            let id_hex = get_id_hex(&current_rp);
+            if id_hex != current_id_hex {
+                total_rps += 1;
+                current_rp = entry;
+                current_id_hex = get_id_hex(&current_rp)
             }
         }
 
+        if let Some(remaining) = NonZeroU32::new(total_rps - 1) {
+            self.state.runtime.cached_rp = Some(CredentialManagementEnumerateRps {
+                remaining,
+                rp_id_hash: rp_id_hash.clone(),
+            });
+        }
+
+        response.total_rps = Some(total_rps);
+        response.rp_id_hash = Some(rp_id_hash);
+        response.rp = Some(credential.data.rp);
         Ok(response)
     }
 
     pub fn next_relying_party(&mut self) -> Result<Response> {
-        info!("next rp");
-
         let CredentialManagementEnumerateRps {
             remaining,
             rp_id_hash: last_rp_id_hash,
@@ -197,73 +205,71 @@ where
             .state
             .runtime
             .cached_rp
-            .clone()
+            .take()
             .ok_or(Error::NotAllowed)?;
-
-        let dir = PathBuf::from(b"rk");
 
         let mut hex = [b'0'; 16];
         super::format_hex(&last_rp_id_hash[..8], &mut hex);
         let filename = PathBuf::from(&hex);
 
-        let mut maybe_next_rp =
+        let dir = PathBuf::from(b"rk");
+
+        let maybe_next_rp =
             syscall!(self
                 .trussed
-                .read_dir_first(Location::Internal, dir, Some(filename),))
+                .read_dir_first(Location::Internal, dir, Some(filename)))
             .entry;
 
-        // Advance to the next
-        if maybe_next_rp.is_some() {
-            maybe_next_rp = syscall!(self.trussed.read_dir_next()).entry;
-        } else {
+        let mut response = Response::default();
+
+        let Some(current_rp) = maybe_next_rp else {
             return Err(Error::NotAllowed);
-        }
+        };
 
-        let mut response: Response = Default::default();
+        let current_id_hex = get_id_hex(&current_rp);
 
-        if let Some(rp) = maybe_next_rp {
-            // load credential and extract rp and rpIdHash
-            let maybe_first_credential = syscall!(self.trussed.read_dir_first(
-                Location::Internal,
-                PathBuf::from(rp.path()),
-                None
-            ))
-            .entry;
+        debug_assert!(current_rp.file_name().as_str().as_bytes().starts_with(&hex));
 
-            match maybe_first_credential {
-                None => panic!("chaos! disorder!"),
-                Some(rk_entry) => {
-                    let serialized = syscall!(self
-                        .trussed
-                        .read_file(Location::Internal, rk_entry.path().into(),))
-                    .data;
-
-                    let credential = FullCredential::deserialize(&serialized)
-                        // this may be a confusing error message
-                        .map_err(|_| Error::InvalidCredential)?;
-
-                    let rp = credential.data.rp;
-
-                    response.rp_id_hash = Some(self.hash(rp.id.as_ref()));
-                    response.rp = Some(rp);
-
-                    // cache state for next call
-                    if remaining > 1 {
-                        let rp_id_hash = response.rp_id_hash.as_ref().unwrap().clone();
-                        self.state.runtime.cached_rp = Some(CredentialManagementEnumerateRps {
-                            remaining: remaining - 1,
-                            rp_id_hash,
-                        });
-                    } else {
-                        self.state.runtime.cached_rp = None;
-                    }
-                }
+        while let Some(entry) = syscall!(self.trussed.read_dir_next()).entry {
+            let id_hex = get_id_hex(&entry);
+            if id_hex == current_id_hex {
+                continue;
             }
-        } else {
-            self.state.runtime.cached_rp = None;
+
+            let data = if entry.metadata().is_dir() {
+                syscall!(self.trussed.read_dir_files_first(
+                    Location::Internal,
+                    entry.path().into(),
+                    None
+                ))
+                .data
+                .expect("RP dir should not be empty")
+            } else {
+                syscall!(self
+                    .trussed
+                    .read_file(Location::Internal, entry.path().into()))
+                .data
+            };
+
+            let credential = FullCredential::deserialize(&data)?;
+            let rp_id_hash = syscall!(self.trussed.hash_sha256(credential.rp.id.as_ref()))
+                .hash
+                .to_bytes()
+                .map_err(|_| Error::Other)?;
+            response.rp_id_hash = Some(rp_id_hash.clone());
+            response.rp = Some(credential.data.rp);
+
+            if let Some(new_remaining) = NonZeroU32::new(remaining.get() - 1) {
+                self.state.runtime.cached_rp = Some(CredentialManagementEnumerateRps {
+                    remaining: new_remaining,
+                    rp_id_hash,
+                });
+            }
+
+            return Ok(response);
         }
 
-        Ok(response)
+        return Err(Error::NotAllowed);
     }
 
     fn count_rp_rks(&mut self, rp_dir: PathBuf) -> (u32, Option<DirEntry>) {

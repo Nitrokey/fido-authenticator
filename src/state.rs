@@ -2,6 +2,8 @@
 //!
 //! Needs cleanup.
 
+use core::num::NonZeroU32;
+
 use ctap_types::{
     cose::EcdhEsHkdf256PublicKey as CoseEcdhEsHkdf256PublicKey,
     // 2022-02-27: 10 credentials
@@ -195,7 +197,7 @@ impl Identity {
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Deserialize, serde::Serialize)]
 pub struct CredentialManagementEnumerateRps {
-    pub remaining: u32,
+    pub remaining: NonZeroU32,
     pub rp_id_hash: Bytes<32>,
 }
 
