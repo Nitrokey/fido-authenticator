@@ -1147,7 +1147,7 @@ impl<UP: UserPresence, T: TrussedRequirements> crate::Authenticator<UP, T> {
         use core::str::FromStr;
 
         let rp_rk_dir = rp_rk_dir(rp_id_hash);
-        let mut maybe_entry = syscall!(self.trussed.read_dir_first(
+        let mut maybe_entry = syscall!(self.trussed.read_dir_first_alphabetical(
             Location::Internal,
             PathBuf::from(b"rk"),
             Some(rp_rk_dir.clone())
