@@ -91,19 +91,28 @@ where
                 .read_dir_first(Location::Internal, dir.clone(), None))
             .entry;
 
-        let first_rp = match maybe_first_rp {
-            None => return response,
-            Some(rp) => rp,
+        let Some(first_rp) = maybe_first_rp else {
+            return response;
         };
 
-        // TODO: FIX
-        let (mut num_rks, _) = self.count_legacy_rp_rks(PathBuf::from(first_rp.path()));
-        let mut last_rp = PathBuf::from(first_rp.file_name());
+        let mut num_rks = 0;
+
+        if first_rp.metadata().is_dir() {
+            let (rk_count, _) = self.count_legacy_rp_rks(PathBuf::from(first_rp.path()));
+            num_rks += rk_count;
+        } else {
+            debug_assert!(first_rp.metadata().is_file());
+            num_rks += 1;
+        }
+
+        let mut previous_credential = first_rp.file_name().into();
 
         loop {
-            syscall!(self
-                .trussed
-                .read_dir_first(Location::Internal, dir.clone(), Some(last_rp),))
+            syscall!(self.trussed.read_dir_first(
+                Location::Internal,
+                dir.clone(),
+                Some(previous_credential),
+            ))
             .entry
             .unwrap();
             let maybe_next_rp = syscall!(self.trussed.read_dir_next()).entry;
@@ -116,8 +125,17 @@ where
                     return response;
                 }
                 Some(rp) => {
-                    last_rp = PathBuf::from(rp.file_name());
+                    previous_credential = PathBuf::from(rp.file_name());
                     info!("counting..");
+
+                    if first_rp.metadata().is_dir() {
+                        let (rk_count, _) = self.count_legacy_rp_rks(first_rp.path().into());
+                        num_rks += rk_count;
+                    } else {
+                        debug_assert!(first_rp.metadata().is_file());
+                        num_rks += 1;
+                    }
+
                     // TODO: FIX
                     let (this_rp_rk_count, _) = self.count_legacy_rp_rks(PathBuf::from(rp.path()));
                     info!("{:?}", this_rp_rk_count);
