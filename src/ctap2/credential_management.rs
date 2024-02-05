@@ -96,7 +96,8 @@ where
             Some(rp) => rp,
         };
 
-        let (mut num_rks, _) = self.count_rp_rks(PathBuf::from(first_rp.path()));
+        // TODO: FIX
+        let (mut num_rks, _) = self.count_legacy_rp_rks(PathBuf::from(first_rp.path()));
         let mut last_rp = PathBuf::from(first_rp.file_name());
 
         loop {
@@ -117,7 +118,8 @@ where
                 Some(rp) => {
                     last_rp = PathBuf::from(rp.file_name());
                     info!("counting..");
-                    let (this_rp_rk_count, _) = self.count_rp_rks(PathBuf::from(rp.path()));
+                    // TODO: FIX
+                    let (this_rp_rk_count, _) = self.count_legacy_rp_rks(PathBuf::from(rp.path()));
                     info!("{:?}", this_rp_rk_count);
                     num_rks += this_rp_rk_count;
                 }
@@ -272,7 +274,7 @@ where
         return Err(Error::NotAllowed);
     }
 
-    fn count_rp_rks(&mut self, rp_dir: PathBuf) -> (u32, Option<DirEntry>) {
+    fn count_legacy_rp_rks(&mut self, rp_dir: PathBuf) -> (u32, Option<DirEntry>) {
         let maybe_first_rk =
             syscall!(self
                 .trussed
@@ -301,7 +303,8 @@ where
         super::format_hex(&rp_id_hash[..8], &mut hex);
 
         let rp_dir = PathBuf::from(b"rk").join(&PathBuf::from(&hex));
-        let (num_rks, first_rk) = self.count_rp_rks(rp_dir);
+        // TODO: FIX
+        let (num_rks, first_rk) = self.count_legacy_rp_rks(rp_dir);
         let first_rk = first_rk.ok_or(Error::NoCredentials)?;
 
         // extract data required into response
