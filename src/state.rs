@@ -205,7 +205,10 @@ pub struct CredentialManagementEnumerateRps {
 pub struct CredentialManagementEnumerateCredentials {
     pub remaining: u32,
     pub rp_dir: PathBuf,
-    pub prev_filename: PathBuf,
+    /// None means that we finished iterating over the legacy credentials,
+    /// and are starting to iterate over the legacy credentials
+    pub prev_filename: Option<PathBuf>,
+    pub iterating_legacy: bool,
 }
 
 #[derive(

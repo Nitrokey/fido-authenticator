@@ -1,5 +1,6 @@
 //! TODO: T
 
+use core::cmp::Ordering;
 use core::{convert::TryFrom, num::NonZeroU32};
 
 use trussed::{
@@ -225,7 +226,7 @@ where
             .state
             .runtime
             .cached_rp
-            .take()
+            .clone()
             .ok_or(Error::NotAllowed)?;
 
         let mut hex = [b'0'; 16];
@@ -320,9 +321,51 @@ where
         let mut hex = [b'0'; 16];
         super::format_hex(&rp_id_hash[..8], &mut hex);
 
-        let rp_dir = PathBuf::from(b"rk").join(&PathBuf::from(&hex));
+        let rk_dir = PathBuf::from(b"rk");
+        let rp_dir_start = PathBuf::from(b"rk").join(&PathBuf::from(&hex));
+
+        let mut num_rks = 0;
+
+        let mut maybe_entry = syscall!(self.trussed.read_dir_first_alphabetical(
+            Location::Internal,
+            rk_dir.clone(),
+            Some(rk_dir)
+        ))
+        .entry;
+
+        let mut legacy_detected = false;
+        let mut only_legacy = true;
+
+        let mut first_rk = None;
+
+        while let Some(entry) = maybe_entry {
+            if !entry.path().as_str().as_bytes().starts_with(&hex) {
+                // We got past all credentials for the relevant RP
+                break;
+            }
+
+            if entry.path() == &*rp_dir_start {
+                // This is the case where we
+                debug_assert!(entry.metadata().is_dir());
+                legacy_detected = true;
+                // Because of the littlefs iteration order, we know that we are at the end
+                break;
+            }
+
+            first_rk = first_rk.or(Some(entry));
+            only_legacy = false;
+            num_rks += 1;
+
+            maybe_entry = syscall!(self.trussed.read_dir_next()).entry;
+        }
+
+        if legacy_detected {
+            let (legacy_rks, first_legacy_rk) = self.count_legacy_rp_rks(rp_dir_start);
+            num_rks += legacy_rks;
+            first_rk = first_rk.or(first_legacy_rk);
+        }
+
         // TODO: FIX
-        let (num_rks, first_rk) = self.count_legacy_rp_rks(rp_dir);
         let first_rk = first_rk.ok_or(Error::NoCredentials)?;
 
         // extract data required into response
@@ -335,10 +378,59 @@ where
                 // let rp_id_hash = response.rp_id_hash.as_ref().unwrap().clone();
                 self.state.runtime.cached_rk = Some(CredentialManagementEnumerateCredentials {
                     remaining: num_rks - 1,
-                    rp_dir: first_rk.path().parent().unwrap(),
-                    prev_filename: PathBuf::from(first_rk.file_name()),
+                    rp_dir: PathBuf::from(&hex),
+                    prev_filename: Some(first_rk.file_name().into()),
+                    iterating_legacy: only_legacy,
                 });
             }
+        }
+
+        Ok(response)
+    }
+
+    pub fn next_legacy_credential(
+        &mut self,
+        cache: CredentialManagementEnumerateCredentials,
+    ) -> Result<Response> {
+        let CredentialManagementEnumerateCredentials {
+            remaining,
+            rp_dir,
+            prev_filename,
+            iterating_legacy,
+        } = cache;
+
+        debug_assert!(iterating_legacy);
+
+        let mut maybe_next_rk = syscall!(self.trussed.read_dir_first(
+            Location::Internal,
+            rp_dir.clone(),
+            prev_filename.clone()
+        ))
+        .entry;
+
+        if maybe_next_rk.is_none() {
+            return Err(Error::NotAllowed);
+        }
+
+        if prev_filename.is_some() {
+            // This is not the first iteration
+            maybe_next_rk = syscall!(self.trussed.read_dir_next()).entry;
+        }
+
+        let Some(rk) = maybe_next_rk else {
+            return Err(Error::NoCredentials);
+        };
+
+        let response = self.extract_response_from_credential_file(rk.path())?;
+
+        // cache state for next call
+        if remaining > 1 {
+            self.state.runtime.cached_rk = Some(CredentialManagementEnumerateCredentials {
+                remaining: remaining - 1,
+                rp_dir,
+                prev_filename: Some(PathBuf::from(rk.file_name())),
+                iterating_legacy: true,
+            });
         }
 
         Ok(response)
@@ -347,60 +439,65 @@ where
     pub fn next_credential(&mut self) -> Result<Response> {
         info!("next credential");
 
+        let cache = self
+            .state
+            .runtime
+            .cached_rk
+            .take()
+            .ok_or(Error::NotAllowed)?;
+
+        if cache.iterating_legacy {
+            return self.next_legacy_credential(cache);
+        }
+
         let CredentialManagementEnumerateCredentials {
             remaining,
             rp_dir,
             prev_filename,
-        } = self
-            .state
-            .runtime
-            .cached_rk
-            .clone()
-            .ok_or(Error::NotAllowed)?;
-        // let (remaining, rp_dir, prev_filename) = match self.state.runtime.cached_rk {
-        //     Some(CredentialManagementEnumerateCredentials(
-        //             x, ref y, ref z))
-        //          => (x, y.clone(), z.clone()),
-        //     _ => return Err(Error::NotAllowed),
-        // };
+            iterating_legacy: _,
+        } = cache;
 
-        self.state.runtime.cached_rk = None;
+        debug_assert!(prev_filename.is_some());
 
-        // let mut hex = [b'0'; 16];
-        // super::format_hex(&rp_id_hash[..8], &mut hex);
-        // let rp_dir = PathBuf::from(b"rk").join(&PathBuf::from(&hex));
+        syscall!(self.trussed.read_dir_first_alphabetical(
+            Location::Internal,
+            rp_dir.clone(),
+            prev_filename
+        ))
+        .entry;
 
-        let mut maybe_next_rk =
-            syscall!(self
-                .trussed
-                .read_dir_first(Location::Internal, rp_dir, Some(prev_filename)))
-            .entry;
+        // The previous entry was already read. Skip to the next
+        let Some(entry) = syscall!(self.trussed.read_dir_next()).entry else {
+            return Err(Error::NoCredentials);
+        };
 
-        // Advance to the next
-        if maybe_next_rk.is_some() {
-            maybe_next_rk = syscall!(self.trussed.read_dir_next()).entry;
-        } else {
-            return Err(Error::NotAllowed);
+        if entry.file_name().cmp_lfs(&rp_dir) == Ordering::Greater {
+            // We reached the end of the credentials for the rp
+            return Err(Error::NoCredentials);
         }
 
-        match maybe_next_rk {
-            Some(rk) => {
-                // extract data required into response
-                let response = self.extract_response_from_credential_file(rk.path())?;
-
-                // cache state for next call
-                if remaining > 1 {
-                    self.state.runtime.cached_rk = Some(CredentialManagementEnumerateCredentials {
-                        remaining: remaining - 1,
-                        rp_dir: rk.path().parent().unwrap(),
-                        prev_filename: PathBuf::from(rk.file_name()),
-                    });
-                }
-
-                Ok(response)
-            }
-            None => Err(Error::NoCredentials),
+        if entry.metadata().is_dir() {
+            return self.next_legacy_credential(CredentialManagementEnumerateCredentials {
+                remaining,
+                rp_dir,
+                prev_filename: None,
+                iterating_legacy: true,
+            });
         }
+
+        let response = self.extract_response_from_credential_file(entry.path())?;
+
+        // cache state for next call
+        if remaining > 1 {
+            self.state.runtime.cached_rk = Some(CredentialManagementEnumerateCredentials {
+                remaining: remaining - 1,
+                rp_dir,
+                prev_filename: Some(entry.path().into()),
+                iterating_legacy: true,
+            });
+        }
+
+        Ok(response)
     }
 
     fn extract_response_from_credential_file(&mut self, rk_path: &Path) -> Result<Response> {
