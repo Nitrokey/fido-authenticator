@@ -322,14 +322,14 @@ where
         super::format_hex(&rp_id_hash[..8], &mut hex);
 
         let rk_dir = PathBuf::from(b"rk");
-        let rp_dir_start = PathBuf::from(b"rk").join(&PathBuf::from(&hex));
+        let rp_dir_start = PathBuf::from(&hex);
 
         let mut num_rks = 0;
 
         let mut maybe_entry = syscall!(self.trussed.read_dir_first_alphabetical(
             Location::Internal,
             rk_dir.clone(),
-            Some(rk_dir)
+            Some(rp_dir_start.clone())
         ))
         .entry;
 
@@ -338,13 +338,13 @@ where
 
         let mut first_rk = None;
 
-        while let Some(entry) = maybe_entry {
-            if !entry.path().as_str().as_bytes().starts_with(&hex) {
+        while let Some(entry) = dbg!(maybe_entry) {
+            if !entry.file_name().as_str().as_bytes().starts_with(&hex) {
                 // We got past all credentials for the relevant RP
                 break;
             }
 
-            if entry.path() == &*rp_dir_start {
+            if entry.file_name() == &*rp_dir_start {
                 // This is the case where we
                 debug_assert!(entry.metadata().is_dir());
                 legacy_detected = true;
@@ -360,7 +360,8 @@ where
         }
 
         if legacy_detected {
-            let (legacy_rks, first_legacy_rk) = self.count_legacy_rp_rks(rp_dir_start);
+            let (legacy_rks, first_legacy_rk) =
+                dbg!(self.count_legacy_rp_rks(rk_dir.join(&rp_dir_start)));
             num_rks += legacy_rks;
             first_rk = first_rk.or(first_legacy_rk);
         }
@@ -378,7 +379,11 @@ where
                 // let rp_id_hash = response.rp_id_hash.as_ref().unwrap().clone();
                 self.state.runtime.cached_rk = Some(CredentialManagementEnumerateCredentials {
                     remaining: num_rks - 1,
-                    rp_dir: PathBuf::from(&hex),
+                    rp_dir: if only_legacy {
+                        rk_dir.join(&PathBuf::from(&hex))
+                    } else {
+                        PathBuf::from(&hex)
+                    },
                     prev_filename: Some(first_rk.file_name().into()),
                     iterating_legacy: only_legacy,
                 });
@@ -445,6 +450,7 @@ where
             .cached_rk
             .take()
             .ok_or(Error::NotAllowed)?;
+        dbg!(&cache);
 
         if cache.iterating_legacy {
             return self.next_legacy_credential(cache);
@@ -479,7 +485,7 @@ where
         if entry.metadata().is_dir() {
             return self.next_legacy_credential(CredentialManagementEnumerateCredentials {
                 remaining,
-                rp_dir,
+                rp_dir: entry.path().into(),
                 prev_filename: None,
                 iterating_legacy: true,
             });
@@ -492,7 +498,7 @@ where
             self.state.runtime.cached_rk = Some(CredentialManagementEnumerateCredentials {
                 remaining: remaining - 1,
                 rp_dir,
-                prev_filename: Some(entry.path().into()),
+                prev_filename: Some(entry.file_name().into()),
                 iterating_legacy: true,
             });
         }
