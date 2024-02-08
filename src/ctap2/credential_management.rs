@@ -109,6 +109,8 @@ where
         let mut previous_credential = first_rp.file_name().into();
 
         loop {
+            // We need to restart the iteration each time because count_legacy_rp_rk has
+            // its own iteration loop
             syscall!(self.trussed.read_dir_first(
                 Location::Internal,
                 dir.clone(),
@@ -129,18 +131,13 @@ where
                     previous_credential = PathBuf::from(rp.file_name());
                     info!("counting..");
 
-                    if first_rp.metadata().is_dir() {
-                        let (rk_count, _) = self.count_legacy_rp_rks(first_rp.path().into());
+                    if rp.metadata().is_dir() {
+                        let (rk_count, _) = self.count_legacy_rp_rks(rp.path().into());
                         num_rks += rk_count;
                     } else {
-                        debug_assert!(first_rp.metadata().is_file());
+                        debug_assert!(rp.metadata().is_file());
                         num_rks += 1;
                     }
-
-                    // TODO: FIX
-                    let (this_rp_rk_count, _) = self.count_legacy_rp_rks(PathBuf::from(rp.path()));
-                    info!("{:?}", this_rp_rk_count);
-                    num_rks += this_rp_rk_count;
                 }
             }
         }
@@ -338,7 +335,7 @@ where
 
         let mut first_rk = None;
 
-        while let Some(entry) = dbg!(maybe_entry) {
+        while let Some(entry) = maybe_entry {
             if !entry.file_name().as_str().as_bytes().starts_with(&hex) {
                 // We got past all credentials for the relevant RP
                 break;
@@ -361,7 +358,7 @@ where
 
         if legacy_detected {
             let (legacy_rks, first_legacy_rk) =
-                dbg!(self.count_legacy_rp_rks(rk_dir.join(&rp_dir_start)));
+                self.count_legacy_rp_rks(rk_dir.join(&rp_dir_start));
             num_rks += legacy_rks;
             first_rk = first_rk.or(first_legacy_rk);
         }
@@ -382,7 +379,7 @@ where
                     rp_dir: if only_legacy {
                         rk_dir.join(&PathBuf::from(&hex))
                     } else {
-                        PathBuf::from(&hex)
+                        rk_dir
                     },
                     prev_filename: Some(first_rk.file_name().into()),
                     iterating_legacy: only_legacy,
@@ -450,7 +447,6 @@ where
             .cached_rk
             .take()
             .ok_or(Error::NotAllowed)?;
-        dbg!(&cache);
 
         if cache.iterating_legacy {
             return self.next_legacy_credential(cache);
