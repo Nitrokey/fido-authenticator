@@ -188,15 +188,14 @@ where
     debug!("2a SP: {:X}", msp());
     use ctap2::Authenticator;
     authenticator
-        .call_ctap2(dbg!(&ctap_request))
+        .call_ctap2(&ctap_request)
         .map(|response| {
             info!("Sending CTAP2 response {:?}", response_operation(&response));
             trace!("CTAP2 response: {:?}", response);
-            dbg!(response)
+            response
         })
         .map_err(|error| {
             info!("CTAP2 error: {:?}", error);
-            dbg!(error);
             error as u8
         })
 }
