@@ -495,7 +495,7 @@ where
                 remaining: remaining - 1,
                 rp_dir,
                 prev_filename: Some(entry.file_name().into()),
-                iterating_legacy: true,
+                iterating_legacy: false,
             });
         }
 
