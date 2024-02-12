@@ -194,7 +194,7 @@ where
         let mut current_id_hex = get_id_hex(&current_rp);
 
         while let Some(entry) = syscall!(self.trussed.read_dir_next()).entry {
-            let id_hex = get_id_hex(&current_rp);
+            let id_hex = get_id_hex(&entry);
             if id_hex != current_id_hex {
                 total_rps += 1;
                 current_rp = entry;
@@ -232,11 +232,12 @@ where
 
         let dir = PathBuf::from(b"rk");
 
-        let maybe_next_rp =
-            syscall!(self
-                .trussed
-                .read_dir_first(Location::Internal, dir, Some(filename)))
-            .entry;
+        let maybe_next_rp = syscall!(self.trussed.read_dir_first_alphabetical(
+            Location::Internal,
+            dir,
+            Some(filename)
+        ))
+        .entry;
 
         let mut response = Response::default();
 
