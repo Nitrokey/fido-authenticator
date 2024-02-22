@@ -964,12 +964,14 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
         // Note: If allowList is passed, credential is Some(credential)
         // If no allowList is passed, credential is None and the retrieved credentials
         // are stored in state.runtime.credential_heap
-        let (credential, num_credentials) = self
+        let credential_result = self
             .prepare_credentials(&rp_id_hash, &parameters.allow_list, uv_performed)
-            .ok_or(Error::NoCredentials)?;
+            .ok_or(Error::NoCredentials);
 
-        info_now!("found {:?} applicable credentials", num_credentials);
-        info_now!("{:?}", &credential);
+        // CTAP 2.1 expects us to return an error now if there are no matching credentials, but
+        // CTAP 2.0 expects us to check user presence first.
+        #[cfg(not(feature = "ctap20"))]
+        let (credential, num_credentials) = credential_result?;
 
         // 6. process any options present
 
@@ -1002,6 +1004,12 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
             info_now!("not asking for up");
             false
         };
+
+        #[cfg(feature = "ctap20")]
+        let (credential, num_credentials) = credential_result?;
+
+        info_now!("found {:?} applicable credentials", num_credentials);
+        info_now!("{:?}", &credential);
 
         let multiple_credentials = num_credentials > 1;
         self.state.runtime.active_get_assertion = Some(state::ActiveGetAssertionData {

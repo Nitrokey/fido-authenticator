@@ -37,6 +37,9 @@ enable-fido-pre = []
 # enables support for a large-blob array longer than 1024 bytes
 chunked = ["trussed-staging/chunked"]
 
+# CTAP 2.0. compatibility mode
+ctap20 = []
+
 log-all = []
 log-none = []
 log-info = []
