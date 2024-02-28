@@ -18,6 +18,7 @@ generate_macros!();
 use core::time::Duration;
 
 use trussed::{client, syscall, types::Message, Client as TrussedClient};
+use trussed_hkdf::HkdfClient;
 
 use ctap_types::heapless_bytes::Bytes;
 
@@ -55,6 +56,7 @@ pub trait TrussedRequirements:
     + client::Sha256
     + client::HmacSha256
     + client::Ed255 // + client::Totp
+    + HkdfClient
     + ExtensionRequirements
 {
 }
@@ -67,6 +69,7 @@ impl<T> TrussedRequirements for T where
         + client::Sha256
         + client::HmacSha256
         + client::Ed255 // + client::Totp
+        + HkdfClient
         + ExtensionRequirements
 {
 }
@@ -100,6 +103,8 @@ pub struct Config {
     ///
     /// If this is `None`, the extension and the command are disabled.
     pub large_blobs: Option<ctap2::large_blobs::Config>,
+    /// Enable PIN protocol v2.
+    pub pin_protocol_v2: bool,
 }
 
 impl Config {

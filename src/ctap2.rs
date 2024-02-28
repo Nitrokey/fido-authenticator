@@ -68,8 +68,10 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
                 .unwrap();
         }
 
-        let mut pin_protocols = Vec::<u8, 1>::new();
-        pin_protocols.push(1).unwrap();
+        let mut pin_protocols = Vec::<u8, 2>::new();
+        for pin_protocol in self.pin_protocols() {
+            pin_protocols.push(u8::from(*pin_protocol)).unwrap();
+        }
 
         let options = ctap2::get_info::CtapOptions {
             ep: None,
@@ -1050,15 +1052,24 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
 
 // impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenticator<UP, T>
 impl<UP: UserPresence, T: TrussedRequirements> crate::Authenticator<UP, T> {
-    fn parse_pin_protocol(&self, version: impl Into<u32>) -> Result<PinProtocolVersion> {
-        match version.into() {
-            1 => Ok(PinProtocolVersion::V1),
-            _ => Err(Error::InvalidParameter),
+    fn parse_pin_protocol(&self, version: impl TryInto<u8>) -> Result<PinProtocolVersion> {
+        if let Ok(version) = version.try_into() {
+            for pin_protocol in self.pin_protocols() {
+                if u8::from(*pin_protocol) == version {
+                    return Ok(*pin_protocol);
+                }
+            }
         }
+        Err(Error::InvalidParameter)
     }
 
+    // This is the single source of truth for the supported PIN protocols.
     fn pin_protocols(&self) -> &'static [PinProtocolVersion] {
-        &[PinProtocolVersion::V1]
+        if self.config.pin_protocol_v2 {
+            &[PinProtocolVersion::V1, PinProtocolVersion::V2]
+        } else {
+            &[PinProtocolVersion::V1]
+        }
     }
 
     fn pin_protocol(&mut self, pin_protocol: PinProtocolVersion) -> PinProtocol<'_, T> {
