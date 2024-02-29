@@ -688,16 +688,15 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
                 }
 
                 // 3. generate shared secret
-                let shared_secret = self
-                    .pin_protocol(pin_protocol)
-                    .shared_secret(platform_kek)?;
+                let mut pin_protocol = self.pin_protocol(pin_protocol);
+                let shared_secret = pin_protocol.shared_secret(platform_kek)?;
 
                 // TODO: there are moar early returns!!
                 // - implement Drop?
                 // - do garbage collection outside of this?
 
                 // 4. verify pinAuth
-                shared_secret.verify_pin_auth(&mut self.trussed, new_pin_enc, pin_auth)?;
+                pin_protocol.verify_pin_auth(&shared_secret, new_pin_enc, pin_auth)?;
 
                 // 5. decrypt and verify new PIN
                 let new_pin = self.decrypt_pin_check_length(&shared_secret, new_pin_enc)?;
@@ -744,9 +743,8 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
                 self.state.pin_blocked()?;
 
                 // 3. generate shared secret
-                let shared_secret = self
-                    .pin_protocol(pin_protocol)
-                    .shared_secret(platform_kek)?;
+                let mut pin_protocol_impl = self.pin_protocol(pin_protocol);
+                let shared_secret = pin_protocol_impl.shared_secret(platform_kek)?;
 
                 // 4. verify pinAuth
                 let mut data = MediumData::new();
@@ -754,7 +752,7 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
                     .map_err(|_| Error::InvalidParameter)?;
                 data.extend_from_slice(pin_hash_enc)
                     .map_err(|_| Error::InvalidParameter)?;
-                shared_secret.verify_pin_auth(&mut self.trussed, &data, pin_auth)?;
+                pin_protocol_impl.verify_pin_auth(&shared_secret, &data, pin_auth)?;
 
                 // 5. decrement retries
                 self.state.decrement_retries(&mut self.trussed)?;
@@ -1534,11 +1532,10 @@ impl<UP: UserPresence, T: TrussedRequirements> crate::Authenticator<UP, T> {
             .key;
 
             // Verify the auth tag, which uses the same process as the pinAuth
-            let shared_secret = self
-                .pin_protocol(pin_protocol)
-                .shared_secret(&hmac_secret.key_agreement)?;
-            shared_secret.verify_pin_auth(
-                &mut self.trussed,
+            let mut pin_protocol = self.pin_protocol(pin_protocol);
+            let shared_secret = pin_protocol.shared_secret(&hmac_secret.key_agreement)?;
+            pin_protocol.verify_pin_auth(
+                &shared_secret,
                 &hmac_secret.salt_enc,
                 &hmac_secret.salt_auth,
             )?;

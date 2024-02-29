@@ -195,11 +195,39 @@ impl<'a, T: TrussedRequirements> PinProtocol<'a, T> {
         cose_key
     }
 
+    #[must_use]
+    fn verify(&mut self, key: KeyId, data: &[u8], signature: &[u8]) -> bool {
+        if signature.len() < 16 {
+            return false;
+        }
+        let actual_signature = syscall!(self.trussed.sign_hmacsha256(key, data)).signature;
+        let expected_signature = match self.version {
+            PinProtocolVersion::V1 => &actual_signature[..16],
+            PinProtocolVersion::V2 => &actual_signature,
+        };
+        expected_signature == signature
+    }
+
     // in spec: verify(pinUvAuthToken, ...)
     pub fn verify_pin_token(&mut self, data: &[u8], signature: &[u8]) -> Result<&PinToken> {
         let pin_token = self.pin_token();
-        if pin_token.state.is_in_use && verify(self.trussed, pin_token.key_id, data, signature) {
+        if pin_token.state.is_in_use && self.verify(pin_token.key_id, data, signature) {
             Ok(self.pin_token())
+        } else {
+            Err(Error::PinAuthInvalid)
+        }
+    }
+
+    // in spec: verify(shared secret, ...)
+    pub fn verify_pin_auth(
+        &mut self,
+        shared_secret: &SharedSecret,
+        data: &[u8],
+        pin_auth: &[u8],
+    ) -> Result<()> {
+        let key_id = shared_secret.hmac_key_id();
+        if self.verify(key_id, data, pin_auth) {
+            Ok(())
         } else {
             Err(Error::PinAuthInvalid)
         }
@@ -313,47 +341,35 @@ pub enum SharedSecret {
 }
 
 impl SharedSecret {
-    pub fn verify_pin_auth<T: HmacSha256>(
-        &self,
-        trussed: &mut T,
-        data: &[u8],
-        pin_auth: &Bytes<16>,
-    ) -> Result<()> {
-        let key_id = match self {
+    fn aes_key_id(&self) -> KeyId {
+        match self {
+            Self::V1 { key_id } => *key_id,
+            Self::V2 { aes_key_id, .. } => *aes_key_id,
+        }
+    }
+
+    fn hmac_key_id(&self) -> KeyId {
+        match self {
             Self::V1 { key_id } => *key_id,
             Self::V2 { hmac_key_id, .. } => *hmac_key_id,
-        };
-        if verify(trussed, key_id, data, pin_auth) {
-            Ok(())
-        } else {
-            Err(Error::PinAuthInvalid)
         }
     }
 
     #[must_use]
     pub fn encrypt<T: CryptoClient>(&self, trussed: &mut T, data: &[u8]) -> Bytes<1024> {
-        let key_id = match self {
-            Self::V1 { key_id } => *key_id,
-            Self::V2 { aes_key_id, .. } => *aes_key_id,
-        };
+        let key_id = self.aes_key_id();
         syscall!(trussed.encrypt(Mechanism::Aes256Cbc, key_id, data, b"", None)).ciphertext
     }
 
     #[must_use]
     fn wrap<T: Aes256Cbc>(&self, trussed: &mut T, key: KeyId) -> Bytes<1024> {
-        let wrapping_key = match self {
-            Self::V1 { key_id } => *key_id,
-            Self::V2 { aes_key_id, .. } => *aes_key_id,
-        };
+        let wrapping_key = self.aes_key_id();
         syscall!(trussed.wrap_key_aes256cbc(wrapping_key, key)).wrapped_key
     }
 
     #[must_use]
     pub fn decrypt<T: Aes256Cbc>(&self, trussed: &mut T, data: &[u8]) -> Option<Bytes<1024>> {
-        let key_id = match self {
-            Self::V1 { key_id } => *key_id,
-            Self::V2 { aes_key_id, .. } => *aes_key_id,
-        };
+        let key_id = self.aes_key_id();
         decrypt(trussed, key_id, data)
     }
 
@@ -372,12 +388,6 @@ impl SharedSecret {
             }
         }
     }
-}
-
-#[must_use]
-fn verify<T: HmacSha256>(trussed: &mut T, key: KeyId, data: &[u8], signature: &[u8]) -> bool {
-    let actual_signature = syscall!(trussed.sign_hmacsha256(key, data)).signature;
-    &actual_signature[..16] == signature
 }
 
 #[must_use]
