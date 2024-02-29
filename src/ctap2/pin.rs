@@ -3,7 +3,7 @@ use core::mem;
 use ctap_types::{cose::EcdhEsHkdf256PublicKey, ctap2::client_pin::Permissions, Error, Result};
 use trussed::{
     cbor_deserialize,
-    client::{Aes256Cbc, CryptoClient, HmacSha256, P256},
+    client::{CryptoClient, HmacSha256, P256},
     syscall, try_syscall,
     types::{
         Bytes, KeyId, KeySerialization, Location, Mechanism, Message, StorageAttributes, String,
@@ -234,7 +234,7 @@ impl<'a, T: TrussedRequirements> PinProtocol<'a, T> {
     }
 
     // in spec: encrypt(..., pinUvAuthToken)
-    pub fn encrypt_pin_token(&mut self, shared_secret: &SharedSecret) -> Result<Bytes<32>> {
+    pub fn encrypt_pin_token(&mut self, shared_secret: &SharedSecret) -> Result<Bytes<48>> {
         let token = shared_secret.wrap(self.trussed, self.pin_token().key_id);
         Bytes::from_slice(&token).map_err(|_| Error::Other)
     }
@@ -355,22 +355,50 @@ impl SharedSecret {
         }
     }
 
+    fn generate_iv(&self) -> [u8; 16] {
+        // TODO: randomly generate IV for PIN protocol 2
+        [0; 16]
+    }
+
     #[must_use]
     pub fn encrypt<T: CryptoClient>(&self, trussed: &mut T, data: &[u8]) -> Bytes<1024> {
         let key_id = self.aes_key_id();
-        syscall!(trussed.encrypt(Mechanism::Aes256Cbc, key_id, data, b"", None)).ciphertext
+        let iv = self.generate_iv();
+        let mut ciphertext =
+            syscall!(trussed.encrypt(Mechanism::Aes256Cbc, key_id, data, &iv, None)).ciphertext;
+        if matches!(self, Self::V2 { .. }) {
+            ciphertext.insert_slice_at(&iv, 0).unwrap();
+        }
+        ciphertext
     }
 
     #[must_use]
-    fn wrap<T: Aes256Cbc>(&self, trussed: &mut T, key: KeyId) -> Bytes<1024> {
+    fn wrap<T: CryptoClient>(&self, trussed: &mut T, key: KeyId) -> Bytes<1024> {
         let wrapping_key = self.aes_key_id();
-        syscall!(trussed.wrap_key_aes256cbc(wrapping_key, key)).wrapped_key
+        let iv = self.generate_iv();
+        let mut wrapped_key =
+            syscall!(trussed.wrap_key(Mechanism::Aes256Cbc, wrapping_key, key, &iv)).wrapped_key;
+        if matches!(self, Self::V2 { .. }) {
+            wrapped_key.insert_slice_at(&iv, 0).unwrap();
+        }
+        wrapped_key
     }
 
     #[must_use]
-    pub fn decrypt<T: Aes256Cbc>(&self, trussed: &mut T, data: &[u8]) -> Option<Bytes<1024>> {
+    pub fn decrypt<T: CryptoClient>(&self, trussed: &mut T, data: &[u8]) -> Option<Bytes<1024>> {
         let key_id = self.aes_key_id();
-        decrypt(trussed, key_id, data)
+        let (iv, data) = match self {
+            Self::V1 { .. } => (Default::default(), data),
+            Self::V2 { .. } => {
+                if data.len() < 16 {
+                    return None;
+                }
+                data.split_at(16)
+            }
+        };
+        try_syscall!(trussed.decrypt(Mechanism::Aes256Cbc, key_id, data, iv, b"", b""))
+            .ok()
+            .and_then(|response| response.plaintext)
     }
 
     pub fn delete<T: CryptoClient>(self, trussed: &mut T) {
@@ -388,13 +416,6 @@ impl SharedSecret {
             }
         }
     }
-}
-
-#[must_use]
-fn decrypt<T: Aes256Cbc>(trussed: &mut T, key: KeyId, data: &[u8]) -> Option<Bytes<1024>> {
-    try_syscall!(trussed.decrypt_aes256cbc(key, data))
-        .ok()
-        .and_then(|response| response.plaintext)
 }
 
 fn generate_key_agreement_key<T: P256>(trussed: &mut T) -> KeyId {

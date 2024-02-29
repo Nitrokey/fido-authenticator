@@ -1260,7 +1260,7 @@ impl<UP: UserPresence, T: TrussedRequirements> crate::Authenticator<UP, T> {
         &mut self,
         pin_protocol: PinProtocolVersion,
         shared_secret: &SharedSecret,
-        pin_hash_enc: &Bytes<64>,
+        pin_hash_enc: &Bytes<80>,
     ) -> Result<()> {
         let pin_hash = shared_secret
             .decrypt(&mut self.trussed, pin_hash_enc)
@@ -1540,7 +1540,9 @@ impl<UP: UserPresence, T: TrussedRequirements> crate::Authenticator<UP, T> {
                 &hmac_secret.salt_auth,
             )?;
 
-            if hmac_secret.salt_enc.len() != 32 && hmac_secret.salt_enc.len() != 64 {
+            if hmac_secret.salt_enc.len() != 32
+                && (hmac_secret.salt_enc.len() != 64 || hmac_secret.salt_enc.len() == 80)
+            {
                 debug_now!("invalid hmac-secret length");
                 return Err(Error::InvalidLength);
             }
