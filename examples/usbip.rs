@@ -1,16 +1,14 @@
 // Copyright (C) 2022 Nitrokey GmbH
 // SPDX-License-Identifier: CC0-1.0
 
-//! USB/IP runner for opcard.
+//! USB/IP runner for fido-authenticator.
 //! Run with cargo run --example usbip --features trussed/virt,dispatch
 
-use trussed::api::{reply, request};
 use trussed::backend::BackendId;
-use trussed::serde_extensions::{ExtensionDispatch, ExtensionId, ExtensionImpl};
-use trussed::service::ServiceResources;
-use trussed::types::{Location, NoData};
+use trussed::types::Location;
 use trussed::virt::{self, Ram};
-use trussed::{ClientImplementation, Error, Platform};
+use trussed::ClientImplementation;
+use trussed_derive::{ExtensionDispatch, ExtensionId};
 use trussed_hkdf::{HkdfBackend, HkdfExtension};
 use trussed_usbip::ClientBuilder;
 
@@ -19,102 +17,42 @@ const PRODUCT: &str = "Nitrokey 3";
 const VID: u16 = 0x20a0;
 const PID: u16 = 0x42b2;
 
-#[derive(Default)]
-struct Context {
+#[derive(ExtensionDispatch)]
+#[dispatch(backend_id = "Backend", extension_id = "Extension")]
+#[cfg_attr(
+    feature = "chunked",
+    extensions(Chunked = "trussed_chunked::ChunkedExtension", Hkdf = "HkdfExtension",)
+)]
+#[cfg_attr(not(feature = "chunked"), extensions(Hkdf = "HkdfExtension",))]
+pub struct Dispatch {
     #[cfg(feature = "chunked")]
-    staging: trussed_staging::StagingContext,
-}
-
-#[derive(Default)]
-struct Dispatch {
-    #[cfg(feature = "chunked")]
+    #[extensions("Chunked")]
     staging: trussed_staging::StagingBackend,
+    #[extensions("Hkdf")]
+    hkdf: HkdfBackend,
 }
 
-impl ExtensionDispatch for Dispatch {
-    type BackendId = Backend;
-    type Context = Context;
-    type ExtensionId = Extension;
-
-    fn extension_request<P: Platform>(
-        &mut self,
-        backend: &Self::BackendId,
-        extension: &Self::ExtensionId,
-        ctx: &mut trussed::types::Context<Self::Context>,
-        request: &request::SerdeExtension,
-        resources: &mut ServiceResources<P>,
-    ) -> Result<reply::SerdeExtension, Error> {
-        match backend {
+impl Default for Dispatch {
+    fn default() -> Self {
+        Self {
             #[cfg(feature = "chunked")]
-            Backend::Staging => match extension {
-                Extension::Chunked => self.staging.extension_request_serialized(
-                    &mut ctx.core,
-                    &mut ctx.backends.staging,
-                    request,
-                    resources,
-                ),
-                _ => Err(Error::RequestNotAvailable),
-            },
-            Backend::Hkdf => match extension {
-                Extension::Hkdf => HkdfBackend.extension_request_serialized(
-                    &mut ctx.core,
-                    &mut NoData,
-                    request,
-                    resources,
-                ),
-                #[cfg(feature = "chunked")]
-                _ => Err(Error::RequestNotAvailable),
-            },
+            staging: Default::default(),
+            hkdf: HkdfBackend,
         }
     }
 }
 
-#[cfg(feature = "chunked")]
-impl ExtensionId<trussed_chunked::ChunkedExtension> for Dispatch {
-    type Id = Extension;
-
-    const ID: Extension = Extension::Chunked;
-}
-
-impl ExtensionId<HkdfExtension> for Dispatch {
-    type Id = Extension;
-
-    const ID: Extension = Extension::Hkdf;
-}
-
-enum Backend {
+pub enum Backend {
     #[cfg(feature = "chunked")]
     Staging,
     Hkdf,
 }
 
-enum Extension {
+#[derive(ExtensionId)]
+pub enum Extension {
     #[cfg(feature = "chunked")]
-    Chunked,
-    Hkdf,
-}
-
-impl From<Extension> for u8 {
-    fn from(extension: Extension) -> u8 {
-        match extension {
-            #[cfg(feature = "chunked")]
-            Extension::Chunked => 0,
-            Extension::Hkdf => 1,
-        }
-    }
-}
-
-impl TryFrom<u8> for Extension {
-    type Error = Error;
-
-    fn try_from(id: u8) -> Result<Self, Error> {
-        match id {
-            #[cfg(feature = "chunked")]
-            0 => Ok(Self::Chunked),
-            1 => Ok(Self::Hkdf),
-            _ => Err(Error::InternalError),
-        }
-    }
+    Chunked = 0,
+    Hkdf = 1,
 }
 
 type VirtClient = ClientImplementation<trussed_usbip::Service<Ram, Dispatch>, Dispatch>;
