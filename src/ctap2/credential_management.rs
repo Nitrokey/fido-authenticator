@@ -168,7 +168,7 @@ where
                     let rp = credential.data.rp;
 
                     response.rp_id_hash = Some(self.hash(rp.id.as_ref()));
-                    response.rp = Some(rp);
+                    response.rp = Some(rp.into());
                 }
             }
 
@@ -245,7 +245,7 @@ where
                     let rp = credential.data.rp;
 
                     response.rp_id_hash = Some(self.hash(rp.id.as_ref()));
-                    response.rp = Some(rp);
+                    response.rp = Some(rp.into());
 
                     // cache state for next call
                     if remaining > 1 {
@@ -449,7 +449,7 @@ where
         };
 
         let response = Response {
-            user: Some(credential.data.user),
+            user: Some(credential.data.user.into()),
             credential_id: Some(credential_id.into()),
             public_key: Some(cose_public_key),
             cred_protect,
