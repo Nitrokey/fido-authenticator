@@ -3,11 +3,11 @@ use trussed_hkdf::{HkdfBackend, HkdfExtension};
 
 #[derive(ExtensionDispatch)]
 #[dispatch(backend_id = "Backend", extension_id = "Extension")]
+#[extensions(Hkdf = "HkdfExtension")]
 #[cfg_attr(
     feature = "chunked",
-    extensions(Chunked = "trussed_chunked::ChunkedExtension", Hkdf = "HkdfExtension",)
+    extensions(Chunked = "trussed_chunked::ChunkedExtension")
 )]
-#[cfg_attr(not(feature = "chunked"), extensions(Hkdf = "HkdfExtension",))]
 pub struct Dispatch {
     #[cfg(feature = "chunked")]
     #[extensions("Chunked")]
