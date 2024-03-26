@@ -447,14 +447,20 @@ where
     fn find_credential(&mut self, credential: &PublicKeyCredentialDescriptor) -> Option<PathBuf> {
         let credential_id_hash = self.hash(&credential.id[..]);
         let mut hex = [b'0'; 16];
-        super::format_hex(&credential_id_hash[..8], &mut hex);
+        let hex_str = super::format_hex(&credential_id_hash[..8], &mut hex);
         let dir = PathBuf::from(b"rk");
-        let filename = PathBuf::from(&hex);
 
-        syscall!(self
-            .trussed
-            .locate_file(Location::Internal, Some(dir), filename,))
-        .path
+        let mut maybe_entry =
+            try_syscall!(self.trussed.read_dir_first(Location::Internal, dir, None))
+                .ok()?
+                .entry;
+        while let Some(entry) = maybe_entry {
+            if entry.file_name().as_str().ends_with(&hex_str) {
+                return Some(entry.path().into());
+            }
+            maybe_entry = syscall!(self.trussed.read_dir_next()).entry;
+        }
+        None
     }
 
     pub fn delete_credential(
