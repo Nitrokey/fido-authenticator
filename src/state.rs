@@ -9,6 +9,7 @@ use ctap_types::{
     Error,
     String,
 };
+use delog_panic::DelogPanic as _;
 use trussed::{
     client, syscall, try_syscall,
     types::{KeyId, Location, Mechanism, PathBuf},
@@ -51,7 +52,7 @@ impl<const N: usize> CredentialCacheGeneric<N> {
             self.0.pop();
         }
         // self.0.push(item).ok();
-        self.0.push(item).map_err(drop).unwrap();
+        self.0.push(item).map_err(drop).delog_unwrap();
     }
 
     pub fn pop(&mut self) -> Option<CachedCredential> {
@@ -188,7 +189,7 @@ impl Identity {
                 aaguid = Some(*b"AAGUID0123456789");
             }
 
-            (Some((key, cert)), aaguid.unwrap())
+            (Some((key, cert)), aaguid.delog_unwrap())
         } else {
             info_now!("attestation key does not exist");
             (None, *b"AAGUID0123456789")
@@ -280,16 +281,16 @@ impl PersistentState {
                 .map_err(|_| Error::Other);
 
         if result.is_err() {
-            info!("err loading: {:?}", result.err().unwrap());
+            info!("err loading: {:?}", result.err().delog_unwrap());
             return Err(Error::Other);
         }
 
-        let data = result.unwrap().data;
+        let data = result.delog_unwrap().data;
 
         let result = trussed::cbor_deserialize(&data);
 
         if result.is_err() {
-            info!("err deser'ing: {:?}", result.err().unwrap());
+            info!("err deser'ing: {:?}", result.err().delog_unwrap());
             info!("{}", hex_str!(&data));
             return Err(Error::Other);
         }
@@ -298,7 +299,7 @@ impl PersistentState {
     }
 
     pub fn save<T: TrussedClient>(&self, trussed: &mut T) -> Result<()> {
-        let data = crate::cbor_serialize_message(self).unwrap();
+        let data = crate::cbor_serialize_message(self).delog_unwrap();
 
         syscall!(trussed.write_file(
             Location::Internal,

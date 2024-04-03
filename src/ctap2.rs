@@ -6,6 +6,7 @@ use ctap_types::{
     heapless_bytes::Bytes,
     sizes, Error,
 };
+use delog_panic::DelogPanic as _;
 use sha2::{Digest as _, Sha256};
 
 use trussed::{
@@ -45,30 +46,32 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
 
         use core::str::FromStr;
         let mut versions = Vec::<String<12>, 4>::new();
-        versions.push(String::from_str("U2F_V2").unwrap()).unwrap();
         versions
-            .push(String::from_str("FIDO_2_0").unwrap())
-            .unwrap();
+            .push(String::from_str("U2F_V2").delog_unwrap())
+            .delog_unwrap();
         versions
-            .push(String::from_str("FIDO_2_1").unwrap())
-            .unwrap();
+            .push(String::from_str("FIDO_2_0").delog_unwrap())
+            .delog_unwrap();
+        versions
+            .push(String::from_str("FIDO_2_1").delog_unwrap())
+            .delog_unwrap();
 
         let mut extensions = Vec::<String<13>, 4>::new();
         extensions
-            .push(String::from_str("credProtect").unwrap())
-            .unwrap();
+            .push(String::from_str("credProtect").delog_unwrap())
+            .delog_unwrap();
         extensions
-            .push(String::from_str("hmac-secret").unwrap())
-            .unwrap();
+            .push(String::from_str("hmac-secret").delog_unwrap())
+            .delog_unwrap();
         if self.config.supports_large_blobs() {
             extensions
-                .push(String::from_str("largeBlobKey").unwrap())
-                .unwrap();
+                .push(String::from_str("largeBlobKey").delog_unwrap())
+                .delog_unwrap();
         }
 
         let mut pin_protocols = Vec::<u8, 2>::new();
         for pin_protocol in self.pin_protocols() {
-            pin_protocols.push(u8::from(*pin_protocol)).unwrap();
+            pin_protocols.push(u8::from(*pin_protocol)).delog_unwrap();
         }
 
         let options = ctap2::get_info::CtapOptions {
@@ -89,16 +92,16 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
 
         let mut transports = Vec::new();
         if self.config.nfc_transport {
-            transports.push(String::from("nfc")).unwrap();
+            transports.push(String::from("nfc")).delog_unwrap();
         }
-        transports.push(String::from("usb")).unwrap();
+        transports.push(String::from("usb")).delog_unwrap();
 
         let (_, aaguid) = self.state.identity.attestation(&mut self.trussed);
 
         ctap2::get_info::Response {
             versions,
             extensions: Some(extensions),
-            aaguid: Bytes::from_slice(&aaguid).unwrap(),
+            aaguid: Bytes::from_slice(&aaguid).delog_unwrap(),
             options: Some(options),
             transports: Some(transports),
             // 1200
@@ -349,7 +352,7 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
             .bytes
             .as_slice()
             .try_into()
-            .unwrap();
+            .delog_unwrap();
         info_now!("nonce = {:?}", &nonce);
 
         // 12.b generate credential ID { = AEAD(Serialize(Credential)) }
@@ -362,7 +365,7 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
         // TODO: overwrite, error handling with KeyStoreFull
 
         let large_blob_key = if large_blob_key_requested {
-            Some(Bytes::from_slice(&syscall!(self.trussed.random_bytes(32)).bytes).unwrap())
+            Some(Bytes::from_slice(&syscall!(self.trussed.random_bytes(32)).bytes).delog_unwrap())
         } else {
             None
         };
@@ -462,9 +465,9 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
             attested_credential_data: {
                 // debug_now!("acd in, cid len {}, pk len {}", credential_id.0.len(), cose_public_key.len());
                 let attested_credential_data = ctap2::make_credential::AttestedCredentialData {
-                    aaguid: Bytes::from_slice(&aaguid).unwrap(),
-                    credential_id: credential_id.0.to_bytes().unwrap(),
-                    credential_public_key: cose_public_key.to_bytes().unwrap(),
+                    aaguid: Bytes::from_slice(&aaguid).delog_unwrap(),
+                    credential_id: credential_id.0.to_bytes().delog_unwrap(),
+                    credential_public_key: cose_public_key.to_bytes().delog_unwrap(),
                 };
                 // debug_now!("cose PK = {:?}", &attested_credential_data.credential_public_key);
                 Some(attested_credential_data)
@@ -473,8 +476,8 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
             extensions: {
                 if hmac_secret_requested.is_some() || cred_protect_requested.is_some() {
                     Some(ctap2::make_credential::Extensions {
-                        cred_protect: parameters.extensions.as_ref().unwrap().cred_protect,
-                        hmac_secret: parameters.extensions.as_ref().unwrap().hmac_secret,
+                        cred_protect: parameters.extensions.as_ref().delog_unwrap().cred_protect,
+                        hmac_secret: parameters.extensions.as_ref().delog_unwrap().hmac_secret,
                         large_blob_key: None,
                     })
                 } else {
@@ -1276,11 +1279,11 @@ impl<UP: UserPresence, T: TrussedRequirements> crate::Authenticator<UP, T> {
 
     fn hash_store_pin(&mut self, pin: &Message) -> Result<()> {
         let pin_hash_32 = syscall!(self.trussed.hash_sha256(pin)).hash;
-        let pin_hash: [u8; 16] = pin_hash_32[..16].try_into().unwrap();
+        let pin_hash: [u8; 16] = pin_hash_32[..16].try_into().delog_unwrap();
         self.state
             .persistent
             .set_pin_hash(&mut self.trussed, pin_hash)
-            .unwrap();
+            .delog_unwrap();
 
         Ok(())
     }
@@ -1310,7 +1313,7 @@ impl<UP: UserPresence, T: TrussedRequirements> crate::Authenticator<UP, T> {
             return Err(Error::PinPolicyViolation);
         }
 
-        pin.resize_default(pin_length).unwrap();
+        pin.resize_default(pin_length).delog_unwrap();
 
         Ok(pin)
     }
@@ -1339,7 +1342,7 @@ impl<UP: UserPresence, T: TrussedRequirements> crate::Authenticator<UP, T> {
 
                 // check pinAuth
                 let mut data: Bytes<{ sizes::MAX_CREDENTIAL_ID_LENGTH_PLUS_256 }> =
-                    Bytes::from_slice(&[sub_command as u8]).unwrap();
+                    Bytes::from_slice(&[sub_command as u8]).delog_unwrap();
                 let len = 1 + match sub_command {
                     Subcommand::EnumerateCredentialsBegin
                     | Subcommand::DeleteCredential
@@ -1517,7 +1520,7 @@ impl<UP: UserPresence, T: TrussedRequirements> crate::Authenticator<UP, T> {
             let cred_random = syscall!(self.trussed.derive_key(
                 Mechanism::HmacSha256,
                 credential_key,
-                Some(Bytes::from_slice(&[get_assertion_state.uv_performed as u8]).unwrap()),
+                Some(Bytes::from_slice(&[get_assertion_state.uv_performed as u8]).delog_unwrap()),
                 trussed::types::StorageAttributes::new().set_persistence(Location::Volatile)
             ))
             .key;
@@ -1547,14 +1550,14 @@ impl<UP: UserPresence, T: TrussedRequirements> crate::Authenticator<UP, T> {
             let output1 =
                 syscall!(self.trussed.sign_hmacsha256(cred_random, &salts[0..32])).signature;
 
-            salt_output.extend_from_slice(&output1).unwrap();
+            salt_output.extend_from_slice(&output1).delog_unwrap();
 
             if salts.len() == 64 {
                 // output2 = hmac_sha256(credRandom, salt2)
                 let output2 =
                     syscall!(self.trussed.sign_hmacsha256(cred_random, &salts[32..64])).signature;
 
-                salt_output.extend_from_slice(&output2).unwrap();
+                salt_output.extend_from_slice(&output2).delog_unwrap();
             }
 
             syscall!(self.trussed.delete(cred_random));
@@ -1565,7 +1568,7 @@ impl<UP: UserPresence, T: TrussedRequirements> crate::Authenticator<UP, T> {
             shared_secret.delete(&mut self.trussed);
 
             Ok(Some(ctap2::get_assertion::ExtensionsOutput {
-                hmac_secret: Some(Bytes::from_slice(&output_enc).unwrap()),
+                hmac_secret: Some(Bytes::from_slice(&output_enc).delog_unwrap()),
             }))
         } else {
             Ok(None)
@@ -1578,8 +1581,13 @@ impl<UP: UserPresence, T: TrussedRequirements> crate::Authenticator<UP, T> {
         num_credentials: Option<u32>,
         credential: Credential,
     ) -> Result<ctap2::get_assertion::Response> {
-        let data = self.state.runtime.active_get_assertion.clone().unwrap();
-        let rp_id_hash = Bytes::from_slice(&data.rp_id_hash).unwrap();
+        let data = self
+            .state
+            .runtime
+            .active_get_assertion
+            .clone()
+            .delog_unwrap();
+        let rp_id_hash = Bytes::from_slice(&data.rp_id_hash).delog_unwrap();
 
         let (key, is_rk) = match credential.key().clone() {
             Key::ResidentKey(key) => (key, true),
@@ -1679,7 +1687,7 @@ impl<UP: UserPresence, T: TrussedRequirements> crate::Authenticator<UP, T> {
             .sign(mechanism, key, &commitment, serialization))
         .signature
         .to_bytes()
-        .unwrap();
+        .delog_unwrap();
 
         if !is_rk {
             syscall!(self.trussed.delete(key));
@@ -1942,16 +1950,18 @@ impl<UP: UserPresence, T: TrussedRequirements> crate::Authenticator<UP, T> {
 
             let mut auth_data: Bytes<70> = Bytes::new();
             // 32x 0xff
-            auth_data.resize(32, 0xff).unwrap();
+            auth_data.resize(32, 0xff).delog_unwrap();
             // h'0c00'
-            auth_data.push(0x0c).unwrap();
-            auth_data.push(0x00).unwrap();
+            auth_data.push(0x0c).delog_unwrap();
+            auth_data.push(0x00).delog_unwrap();
             // uint32LittleEndian(offset)
             auth_data
                 .extend_from_slice(&request.offset.to_le_bytes())
-                .unwrap();
+                .delog_unwrap();
             // SHA-256(data)
-            auth_data.extend_from_slice(&Sha256::digest(data)).unwrap();
+            auth_data
+                .extend_from_slice(&Sha256::digest(data))
+                .delog_unwrap();
 
             let mut pin_protocol = self.pin_protocol(pin_protocol);
             let pin_token = pin_protocol.verify_pin_token(&pin_auth, &auth_data)?;

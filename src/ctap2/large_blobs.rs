@@ -1,4 +1,5 @@
 use ctap_types::{sizes::LARGE_BLOB_MAX_FRAGMENT_LENGTH, Error};
+use delog_panic::DelogPanic as _;
 use trussed::{
     client::Client,
     config::MAX_MESSAGE_LENGTH,
@@ -169,7 +170,9 @@ impl<C: Client> Storage<C> for SimpleStorage {
         };
         let length = length.min(max_length);
         let mut buffer = Chunk::new();
-        buffer.extend_from_slice(&data[offset..][..length]).unwrap();
+        buffer
+            .extend_from_slice(&data[offset..][..length])
+            .delog_unwrap();
         Ok(buffer)
     }
 
@@ -217,7 +220,7 @@ impl<C: Client> Storage<C> for SimpleStorage {
             return Ok(false);
         };
         let mut message = Message::new();
-        message.extend_from_slice(&self.buffer[..n]).unwrap();
+        message.extend_from_slice(&self.buffer[..n]).delog_unwrap();
         let checksum = syscall!(client.hash(Mechanism::Sha256, message)).hash;
         Ok(checksum[..HASH_SIZE] == self.buffer[n..])
     }
@@ -257,7 +260,9 @@ impl<C: TrussedRequirements> Storage<C> for ChunkedStorage {
             trace!("Sending empty array instead of missing or corrupted file");
             let start = offset.min(MIN_SIZE);
             let end = (offset + length).min(MIN_SIZE);
-            chunk.extend_from_slice(&EMPTY_ARRAY[start..end]).unwrap();
+            chunk
+                .extend_from_slice(&EMPTY_ARRAY[start..end])
+                .delog_unwrap();
             return Ok(chunk);
         }
 
@@ -306,7 +311,7 @@ impl<C: TrussedRequirements> Storage<C> for ChunkedStorage {
             trace!("Writing {} bytes", chunk.len());
             let path = PathBuf::from(FILENAME_TMP);
             let mut message = Message::new();
-            message.extend_from_slice(chunk).unwrap();
+            message.extend_from_slice(chunk).delog_unwrap();
             if self.create_file {
                 try_syscall!(client.write_file(self.location, path, message, None)).map_err(
                     |_err| {

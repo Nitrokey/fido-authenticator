@@ -2,6 +2,7 @@
 
 use core::cmp::Ordering;
 
+use delog_panic::DelogPanic as _;
 use serde::Serialize;
 use trussed::{client, syscall, try_syscall, types::KeyId};
 
@@ -43,7 +44,7 @@ impl CredentialId {
         let message = &serialized_credential;
         // info!("serialized cred = {:?}", message).ok();
         let associated_data = &rp_id_hash[..];
-        let nonce: [u8; 12] = nonce.as_slice().try_into().unwrap();
+        let nonce: [u8; 12] = nonce.as_slice().try_into().delog_unwrap();
         let encrypted_serialized_credential = syscall!(trussed.encrypt_chacha8poly1305(
             key_encryption_key,
             message,
@@ -312,7 +313,7 @@ impl From<CredentialId> for PublicKeyCredentialDescriptor {
             id: id.0,
             key_type: {
                 let mut key_type = String::new();
-                key_type.push_str("public-key").unwrap();
+                key_type.push_str("public-key").delog_unwrap();
                 key_type
             },
         }
@@ -354,7 +355,7 @@ impl FullCredential {
         FullCredential {
             ctap,
             data,
-            nonce: Bytes::from_slice(&nonce).unwrap(),
+            nonce: Bytes::from_slice(&nonce).delog_unwrap(),
         }
     }
 
@@ -511,7 +512,7 @@ mod test {
                 icon: None,
             },
             user: PublicKeyCredentialUserEntity {
-                id: Bytes::from_slice(&[1, 2, 3]).unwrap(),
+                id: Bytes::from_slice(&[1, 2, 3]).delog_unwrap(),
                 icon: None,
                 name: None,
                 display_name: None,

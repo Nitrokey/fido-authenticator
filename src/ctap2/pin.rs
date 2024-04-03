@@ -1,5 +1,6 @@
 use crate::{cbor_serialize_message, TrussedRequirements};
 use ctap_types::{cose::EcdhEsHkdf256PublicKey, ctap2::client_pin::Permissions, Error, Result};
+use delog_panic::DelogPanic as _;
 use trussed::{
     cbor_deserialize,
     client::{CryptoClient, HmacSha256, P256},
@@ -219,7 +220,7 @@ impl<'a, T: TrussedRequirements> PinProtocol<'a, T> {
             KeySerialization::EcdhEsHkdf256
         ))
         .serialized_key;
-        let cose_key = cbor_deserialize(&serialized_cose_key).unwrap();
+        let cose_key = cbor_deserialize(&serialized_cose_key).delog_unwrap();
         syscall!(self.trussed.delete(public_key));
         cose_key
     }
@@ -241,7 +242,7 @@ impl<'a, T: TrussedRequirements> PinProtocol<'a, T> {
             // We previously checked that `pin_token()` is not None in the first line of this
             // function so this cannot panic, but we cannot return the `pin_token` variable here
             // because of the `verify` call after it.
-            Ok(self.pin_token().unwrap())
+            Ok(self.pin_token().delog_unwrap())
         } else {
             Err(Error::PinAuthInvalid)
         }
@@ -380,11 +381,11 @@ impl SharedSecret {
 
     fn generate_iv<T: CryptoClient>(&self, trussed: &mut T) -> ShortData {
         match self {
-            Self::V1 { .. } => ShortData::from_slice(&[0; 16]).unwrap(),
+            Self::V1 { .. } => ShortData::from_slice(&[0; 16]).delog_unwrap(),
             Self::V2 { .. } => syscall!(trussed.random_bytes(16))
                 .bytes
                 .try_convert_into()
-                .unwrap(),
+                .delog_unwrap(),
         }
     }
 
@@ -396,7 +397,7 @@ impl SharedSecret {
             syscall!(trussed.encrypt(Mechanism::Aes256Cbc, key_id, data, &[], Some(iv.clone())))
                 .ciphertext;
         if matches!(self, Self::V2 { .. }) {
-            ciphertext.insert_slice_at(&iv, 0).unwrap();
+            ciphertext.insert_slice_at(&iv, 0).delog_unwrap();
         }
         ciphertext
     }
@@ -414,7 +415,7 @@ impl SharedSecret {
         ))
         .wrapped_key;
         if matches!(self, Self::V2 { .. }) {
-            wrapped_key.insert_slice_at(&iv, 0).unwrap();
+            wrapped_key.insert_slice_at(&iv, 0).delog_unwrap();
         }
         wrapped_key
     }

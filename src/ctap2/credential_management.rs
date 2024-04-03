@@ -2,6 +2,7 @@
 
 use core::convert::TryFrom;
 
+use delog_panic::{delog_panic, DelogPanic as _};
 use trussed::{
     syscall, try_syscall,
     types::{DirEntry, Location, Path, PathBuf},
@@ -94,7 +95,7 @@ where
                 .trussed
                 .read_dir_first(Location::Internal, dir.clone(), Some(last_rp),))
             .entry
-            .unwrap();
+            .delog_unwrap();
             let maybe_next_rp = syscall!(self.trussed.read_dir_next()).entry;
 
             match maybe_next_rp {
@@ -154,7 +155,7 @@ where
             .entry;
 
             match maybe_first_credential {
-                None => panic!("chaos! disorder!"),
+                None => delog_panic!("chaos! disorder!"),
                 Some(rk_entry) => {
                     let serialized = syscall!(self
                         .trussed
@@ -175,7 +176,7 @@ where
             // cache state for next call
             if let Some(total_rps) = response.total_rps {
                 if total_rps > 1 {
-                    let rp_id_hash = response.rp_id_hash.as_ref().unwrap().clone();
+                    let rp_id_hash = response.rp_id_hash.as_ref().delog_unwrap().clone();
                     self.state.runtime.cached_rp = Some(CredentialManagementEnumerateRps {
                         remaining: total_rps - 1,
                         rp_id_hash,
@@ -231,7 +232,7 @@ where
             .entry;
 
             match maybe_first_credential {
-                None => panic!("chaos! disorder!"),
+                None => delog_panic!("chaos! disorder!"),
                 Some(rk_entry) => {
                     let serialized = syscall!(self
                         .trussed
@@ -249,7 +250,7 @@ where
 
                     // cache state for next call
                     if remaining > 1 {
-                        let rp_id_hash = response.rp_id_hash.as_ref().unwrap().clone();
+                        let rp_id_hash = response.rp_id_hash.as_ref().delog_unwrap().clone();
                         self.state.runtime.cached_rp = Some(CredentialManagementEnumerateRps {
                             remaining: remaining - 1,
                             rp_id_hash,
@@ -308,7 +309,7 @@ where
                 // let rp_id_hash = response.rp_id_hash.as_ref().unwrap().clone();
                 self.state.runtime.cached_rk = Some(CredentialManagementEnumerateCredentials {
                     remaining: num_rks - 1,
-                    rp_dir: first_rk.path().parent().unwrap(),
+                    rp_dir: first_rk.path().parent().delog_unwrap(),
                     prev_filename: PathBuf::from(first_rk.file_name()),
                 });
             }
@@ -365,7 +366,7 @@ where
                 if remaining > 1 {
                     self.state.runtime.cached_rk = Some(CredentialManagementEnumerateCredentials {
                         remaining: remaining - 1,
-                        rp_dir: rk.path().parent().unwrap(),
+                        rp_dir: rk.path().parent().delog_unwrap(),
                         prev_filename: PathBuf::from(rk.file_name()),
                     });
                 }
@@ -424,7 +425,9 @@ where
                 ))
                 .serialized_key;
                 syscall!(self.trussed.delete(public_key));
-                PublicKey::P256Key(ctap_types::serde::cbor_deserialize(&cose_public_key).unwrap())
+                PublicKey::P256Key(
+                    ctap_types::serde::cbor_deserialize(&cose_public_key).delog_unwrap(),
+                )
             }
             SigningAlgorithm::Ed25519 => {
                 let public_key = syscall!(self
@@ -437,7 +440,7 @@ where
                 .serialized_key;
                 syscall!(self.trussed.delete(public_key));
                 PublicKey::Ed25519Key(
-                    ctap_types::serde::cbor_deserialize(&cose_public_key).unwrap(),
+                    ctap_types::serde::cbor_deserialize(&cose_public_key).delog_unwrap(),
                 )
             } // SigningAlgorithm::Totp => {
               //     PublicKey::TotpKey(Default::default())
@@ -489,7 +492,7 @@ where
         let rp_path = rk_path
             .parent()
             // by construction, RK has a parent, its RP
-            .unwrap();
+            .delog_unwrap();
         self.delete_rp_dir_if_empty(rp_path);
 
         // just return OK

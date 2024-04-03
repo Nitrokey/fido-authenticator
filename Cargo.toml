@@ -30,6 +30,8 @@ apdu-dispatch = { version = "0.1", optional = true }
 ctaphid-dispatch = { version = "0.1", optional = true }
 iso7816 = { version = "0.1", optional = true }
 
+delog-panic.git = "https://github.com/trussed-dev/delog-panic"
+
 [features]
 dispatch = ["apdu-dispatch", "ctaphid-dispatch", "iso7816"]
 disable-reset-time-window = []

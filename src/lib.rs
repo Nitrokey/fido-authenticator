@@ -14,12 +14,16 @@
 #![cfg_attr(not(test), no_std)]
 // #![warn(missing_docs)]
 
+// use delog_panic, delog_unwrap, delog_expect instead
+#![warn(clippy::panic, clippy::expect_used, clippy::unwrap_used)]
+
 #[macro_use]
 extern crate delog;
 generate_macros!();
 
 use core::time::Duration;
 
+use delog_panic::DelogPanic as _;
 use trussed::{client, syscall, types::Message, Client as TrussedClient};
 use trussed_hkdf::HkdfClient;
 
@@ -270,7 +274,7 @@ where
 
     fn hash(&mut self, data: &[u8]) -> Bytes<32> {
         let hash = syscall!(self.trussed.hash_sha256(data)).hash;
-        hash.to_bytes().expect("hash should fit")
+        hash.to_bytes().delog_expect("hash should fit")
     }
 
     fn skip_up_check(&mut self) -> bool {
