@@ -1,12 +1,12 @@
 use crate::{cbor_serialize_message, TrussedRequirements};
 use ctap_types::{cose::EcdhEsHkdf256PublicKey, ctap2::client_pin::Permissions, Error, Result};
+use heapless::String;
 use trussed::{
     cbor_deserialize,
-    client::{CryptoClient, HmacSha256, P256},
+    client::{CryptoClient, mechanisms::{HmacSha256, P256}},
     syscall, try_syscall,
     types::{
         Bytes, KeyId, KeySerialization, Location, Mechanism, Message, ShortData, StorageAttributes,
-        String,
     },
 };
 use trussed_hkdf::{KeyOrData, OkmId};
