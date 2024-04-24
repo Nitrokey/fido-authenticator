@@ -58,7 +58,7 @@ pub trait TrussedRequirements:
     + client::Aes256Cbc
     + client::Sha256
     + client::HmacSha256
-    + client::Ed255 // + client::Totp
+    + client::Ed255
     + HkdfClient
     + ExtensionRequirements
 {
@@ -71,7 +71,7 @@ impl<T> TrussedRequirements for T where
         + client::Aes256Cbc
         + client::Sha256
         + client::HmacSha256
-        + client::Ed255 // + client::Totp
+        + client::Ed255
         + HkdfClient
         + ExtensionRequirements
 {
@@ -185,8 +185,6 @@ pub enum SigningAlgorithm {
     Ed25519 = -8,
     /// The NIST P-256 signature algorithm.
     P256 = -7,
-    // #[doc(hidden)]
-    // Totp = -9,
 }
 
 impl core::convert::TryFrom<i32> for SigningAlgorithm {
@@ -195,7 +193,6 @@ impl core::convert::TryFrom<i32> for SigningAlgorithm {
         Ok(match alg {
             -7 => SigningAlgorithm::P256,
             -8 => SigningAlgorithm::Ed25519,
-            // -9 => SigningAlgorithm::Totp,
             _ => return Err(Error::UnsupportedAlgorithm),
         })
     }
