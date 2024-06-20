@@ -31,7 +31,7 @@ pub enum CtapVersion {
 pub struct CredentialId(pub Bytes<MAX_CREDENTIAL_ID_LENGTH>);
 
 impl CredentialId {
-    fn new<T: client::Chacha8Poly1305 + client::Sha256, C: Serialize>(
+    fn new<T: client::mechanisms::Chacha8Poly1305 + client::mechanisms::Sha256, C: Serialize>(
         trussed: &mut T,
         credential: &C,
         key_encryption_key: KeyId,
@@ -115,7 +115,7 @@ pub enum Credential {
 }
 
 impl Credential {
-    pub fn try_from<UP: UserPresence, T: client::Client + client::Chacha8Poly1305>(
+    pub fn try_from<UP: UserPresence, T: client::Client + client::mechanisms::Chacha8Poly1305>(
         authnr: &mut Authenticator<UP, T>,
         rp_id_hash: &Bytes<32>,
         descriptor: &PublicKeyCredentialDescriptorRef,
@@ -123,7 +123,7 @@ impl Credential {
         Self::try_from_bytes(authnr, rp_id_hash, descriptor.id)
     }
 
-    pub fn try_from_bytes<UP: UserPresence, T: client::Client + client::Chacha8Poly1305>(
+    pub fn try_from_bytes<UP: UserPresence, T: client::Client + client::mechanisms::Chacha8Poly1305>(
         authnr: &mut Authenticator<UP, T>,
         rp_id_hash: &Bytes<32>,
         id: &[u8],
@@ -158,7 +158,7 @@ impl Credential {
             .map_err(|_| Error::InvalidCredential)
     }
 
-    pub fn id<T: client::Chacha8Poly1305 + client::Sha256>(
+    pub fn id<T: client::mechanisms::Chacha8Poly1305 + client::mechanisms::Sha256>(
         &self,
         trussed: &mut T,
         key_encryption_key: KeyId,
@@ -371,7 +371,7 @@ impl FullCredential {
     // the ID will stay below 255 bytes.
     //
     // Existing keyhandles can still be decoded
-    pub fn id<T: client::Chacha8Poly1305 + client::Sha256>(
+    pub fn id<T: client::mechanisms::Chacha8Poly1305 + client::mechanisms::Sha256>(
         &self,
         trussed: &mut T,
         key_encryption_key: KeyId,
@@ -468,7 +468,7 @@ impl StrippedCredential {
         }
     }
 
-    pub fn id<T: client::Chacha8Poly1305 + client::Sha256>(
+    pub fn id<T: client::mechanisms::Chacha8Poly1305 + client::mechanisms::Sha256>(
         &self,
         trussed: &mut T,
         key_encryption_key: KeyId,
@@ -499,7 +499,7 @@ mod test {
     use super::*;
     use ctap_types::webauthn::{PublicKeyCredentialRpEntity, PublicKeyCredentialUserEntity};
     use trussed::{
-        client::{Chacha8Poly1305, Sha256},
+        client::mechanisms::{Chacha8Poly1305, Sha256},
         types::Location,
     };
 

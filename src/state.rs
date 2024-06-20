@@ -12,7 +12,7 @@ use ctap_types::{
 use trussed::{
     client, syscall, try_syscall,
     types::{KeyId, Location, Mechanism, PathBuf},
-    Client as TrussedClient,
+    client::Client as TrussedClient,
 };
 
 use heapless::binary_heap::{BinaryHeap, Max};
@@ -273,7 +273,7 @@ impl PersistentState {
     const RESET_RETRIES: u8 = 8;
     const FILENAME: &'static [u8] = b"persistent-state.cbor";
 
-    pub fn load<T: client::Client + client::Chacha8Poly1305>(trussed: &mut T) -> Result<Self> {
+    pub fn load<T: client::Client + client::mechanisms::Chacha8Poly1305>(trussed: &mut T) -> Result<Self> {
         // TODO: add "exists_file" method instead?
         let result =
             try_syscall!(trussed.read_file(Location::Internal, PathBuf::from(Self::FILENAME),))
@@ -324,7 +324,7 @@ impl PersistentState {
         self.save(trussed)
     }
 
-    pub fn load_if_not_initialised<T: client::Client + client::Chacha8Poly1305>(
+    pub fn load_if_not_initialised<T: client::Client + client::mechanisms::Chacha8Poly1305>(
         &mut self,
         trussed: &mut T,
     ) {
@@ -349,7 +349,7 @@ impl PersistentState {
         Ok(now)
     }
 
-    pub fn key_encryption_key<T: client::Client + client::Chacha8Poly1305>(
+    pub fn key_encryption_key<T: client::Client + client::mechanisms::Chacha8Poly1305>(
         &mut self,
         trussed: &mut T,
     ) -> Result<KeyId> {
@@ -359,7 +359,7 @@ impl PersistentState {
         }
     }
 
-    pub fn rotate_key_encryption_key<T: client::Client + client::Chacha8Poly1305>(
+    pub fn rotate_key_encryption_key<T: client::Client + client::mechanisms::Chacha8Poly1305>(
         &mut self,
         trussed: &mut T,
     ) -> Result<KeyId> {
@@ -372,7 +372,7 @@ impl PersistentState {
         Ok(key)
     }
 
-    pub fn key_wrapping_key<T: client::Client + client::Chacha8Poly1305>(
+    pub fn key_wrapping_key<T: client::Client + client::mechanisms::Chacha8Poly1305>(
         &mut self,
         trussed: &mut T,
     ) -> Result<KeyId> {
@@ -382,7 +382,7 @@ impl PersistentState {
         }
     }
 
-    pub fn rotate_key_wrapping_key<T: client::Client + client::Chacha8Poly1305>(
+    pub fn rotate_key_wrapping_key<T: client::Client + client::mechanisms::Chacha8Poly1305>(
         &mut self,
         trussed: &mut T,
     ) -> Result<KeyId> {

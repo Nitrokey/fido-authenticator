@@ -20,7 +20,7 @@ generate_macros!();
 
 use core::time::Duration;
 
-use trussed::{client, syscall, types::Message, Client as TrussedClient};
+use trussed::{client, syscall, types::Message, client::Client as TrussedClient};
 use trussed_hkdf::HkdfClient;
 
 use ctap_types::heapless_bytes::Bytes;
@@ -53,12 +53,12 @@ pub type Result<T> = core::result::Result<T, Error>;
 ///   [`ExtensionRequirements`][].
 pub trait TrussedRequirements:
     client::Client
-    + client::P256
-    + client::Chacha8Poly1305
-    + client::Aes256Cbc
-    + client::Sha256
-    + client::HmacSha256
-    + client::Ed255 // + client::Totp
+    + client::mechanisms::P256
+    + client::mechanisms::Chacha8Poly1305
+    + client::mechanisms::Aes256Cbc
+    + client::mechanisms::Sha256
+    + client::mechanisms::HmacSha256
+    + client::mechanisms::Ed255 // + client::Totp
     + HkdfClient
     + ExtensionRequirements
 {
@@ -66,12 +66,12 @@ pub trait TrussedRequirements:
 
 impl<T> TrussedRequirements for T where
     T: client::Client
-        + client::P256
-        + client::Chacha8Poly1305
-        + client::Aes256Cbc
-        + client::Sha256
-        + client::HmacSha256
-        + client::Ed255 // + client::Totp
+        + client::mechanisms::P256
+        + client::mechanisms::Chacha8Poly1305
+        + client::mechanisms::Aes256Cbc
+        + client::mechanisms::Sha256
+        + client::mechanisms::HmacSha256
+        + client::mechanisms::Ed255 // + client::Totp
         + HkdfClient
         + ExtensionRequirements
 {
