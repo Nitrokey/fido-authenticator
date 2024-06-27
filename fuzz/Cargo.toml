@@ -11,6 +11,7 @@ cargo-fuzz = true
 ctap-types = { version = "0.2.0", features = ["arbitrary"] }
 libfuzzer-sys = "0.4"
 trussed-staging = { version = "0.3.0", features = ["chunked", "hkdf", "virt"] }
+arbitrary = "1.3"
 
 [dependencies.fido-authenticator]
 path = ".."
@@ -18,6 +19,13 @@ path = ".."
 [[bin]]
 name = "ctap"
 path = "fuzz_targets/ctap.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "functional"
+path = "fuzz_targets/functional.rs"
 test = false
 doc = false
 bench = false
