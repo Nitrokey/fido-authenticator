@@ -9,6 +9,7 @@ use ctap_types::{
     Error,
     String,
 };
+use littlefs2_core::{path, Path};
 use trussed::{
     client, syscall, try_syscall,
     types::{KeyId, Location, Mechanism, PathBuf},
@@ -271,12 +272,12 @@ pub struct PersistentState {
 
 impl PersistentState {
     const RESET_RETRIES: u8 = 8;
-    const FILENAME: &'static [u8] = b"persistent-state.cbor";
+    const FILENAME: &'static Path = path!("persistent-state.cbor");
 
     pub fn load<T: client::Client + client::Chacha8Poly1305>(trussed: &mut T) -> Result<Self> {
         // TODO: add "exists_file" method instead?
         let result =
-            try_syscall!(trussed.read_file(Location::Internal, PathBuf::from(Self::FILENAME),))
+            try_syscall!(trussed.read_file(Location::Internal, Self::FILENAME.into()))
                 .map_err(|_| Error::Other);
 
         if result.is_err() {
@@ -302,7 +303,7 @@ impl PersistentState {
 
         syscall!(trussed.write_file(
             Location::Internal,
-            PathBuf::from(Self::FILENAME),
+            Self::FILENAME.into(),
             data,
             None,
         ));
@@ -484,7 +485,7 @@ impl RuntimeState {
 
         let credential_data = syscall!(trussed.read_file(
             Location::Internal,
-            PathBuf::from(cached_credential.path.as_str()),
+            PathBuf::try_from(cached_credential.path.as_str()).unwrap(),
         ))
         .data;
 

@@ -19,6 +19,7 @@ ctap-types = { version = "0.3.0", features = ["get-info-full", "large-blobs", "t
 cosey = "0.3"
 delog = "0.1.0"
 heapless = "0.7"
+littlefs2-core = "0.1"
 serde = { version = "1.0", default-features = false }
 serde_bytes = { version = "0.11.14", default-features = false }
 serde-indexed = "0.1.0"
@@ -79,8 +80,9 @@ features = ["dispatch"]
 cbor-smol = { git = "https://github.com/sosthene-nitrokey/cbor-smol.git", rev = "9a77dc9b528b08f531d76b44af2f5336c4ef17e0"}
 ctaphid-dispatch = { git = "https://github.com/trussed-dev/ctaphid-dispatch.git", rev = "57cb3317878a8593847595319aa03ef17c29ec5b" }
 apdu-dispatch = { git = "https://github.com/trussed-dev/apdu-dispatch.git", rev = "915fc237103fcecc29d0f0b73391f19abf6576de" }
-trussed = { git = "https://github.com/trussed-dev/trussed.git", rev = "a055e4f79a10122c8c0c882161442e6e02f0c5c6" }
-littlefs2 = { git = "https://github.com/trussed-dev/littlefs2.git", rev = "960e57d9fc0d209308c8e15dc26252bbe1ff6ba8" }
+littlefs2 = { git = "https://github.com/trussed-dev/littlefs2.git" }
+littlefs2-core = { git = "https://github.com/trussed-dev/littlefs2.git" }
+trussed = { git = "https://github.com/trussed-dev/trussed.git", branch = "littlefs2" }
 trussed-chunked = { git = "https://github.com/trussed-dev/trussed-staging.git", tag = "chunked-v0.1.0" }
 trussed-fs-info = { git = "https://github.com/trussed-dev/trussed-staging.git", rev = "170ab14f3bb6760399749d78e1b94e3b70106739" }
 trussed-hkdf = { git = "https://github.com/trussed-dev/trussed-staging.git", tag = "hkdf-v0.2.0" }
