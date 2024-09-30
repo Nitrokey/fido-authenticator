@@ -14,6 +14,7 @@ use ctap_types::{
     webauthn::{PublicKeyCredentialDescriptorRef, PublicKeyCredentialUserEntity},
     ByteArray, Error,
 };
+use littlefs2::path;
 
 use crate::{
     constants::MAX_RESIDENT_CREDENTIALS_GUESSTIMATE,
@@ -21,6 +22,8 @@ use crate::{
     state::{CredentialManagementEnumerateCredentials, CredentialManagementEnumerateRps},
     Authenticator, Result, TrussedRequirements, UserPresence,
 };
+
+const RK_DIR: &Path = path!("rk");
 
 pub(crate) struct CredentialManagement<'a, UP, T>
 where
@@ -91,13 +94,12 @@ where
     }
 
     pub fn count_credentials(&mut self) -> Result<u32> {
-        let dir = PathBuf::from(b"rk");
         let mut num_rks = 0;
 
         let mut maybe_next =
             syscall!(self
                 .trussed
-                .read_dir_first(Location::Internal, dir.clone(), None))
+                .read_dir_first(Location::Internal, RK_DIR.into(), None))
             .entry;
 
         while let Some(rp) = maybe_next {
@@ -117,12 +119,11 @@ where
         info!("first rp");
 
         let mut response = Response::default();
-        let dir = PathBuf::from(b"rk");
 
         let maybe_first_rp =
             syscall!(self
                 .trussed
-                .read_dir_first(Location::Internal, dir.clone(), None))
+                .read_dir_first(Location::Internal, RK_DIR.into(), None))
             .entry;
 
         let Some(first_rp) = maybe_first_rp else {
@@ -191,11 +192,9 @@ where
         super::format_hex(&last_rp_id_hash[..8], &mut hex);
         let filename = PathBuf::from(&hex);
 
-        let dir = PathBuf::from(b"rk");
-
         let maybe_next_rp = syscall!(self.trussed.read_dir_first_alphabetical(
             Location::Internal,
-            dir,
+            RK_DIR.into(),
             Some(filename)
         ))
         .entry;
@@ -257,14 +256,13 @@ where
         let mut hex = [b'0'; 16];
         super::format_hex(&rp_id_hash[..8], &mut hex);
 
-        let rk_dir = PathBuf::from(b"rk");
         let rp_dir_start = PathBuf::from(&hex);
 
         let mut num_rks = 0;
 
         let mut maybe_entry = syscall!(self.trussed.read_dir_first_alphabetical(
             Location::Internal,
-            rk_dir.clone(),
+            RK_DIR.into(),
             Some(rp_dir_start.clone())
         ))
         .entry;
@@ -302,8 +300,7 @@ where
             // let rp_id_hash = response.rp_id_hash.as_ref().unwrap().clone();
             self.state.runtime.cached_rk = Some(CredentialManagementEnumerateCredentials {
                 remaining: num_rks - 1,
-                rp_dir: rk_dir,
-                prev_filename: Some(first_rk.file_name().into()),
+                prev_filename: first_rk.file_name().into(),
             });
         }
 
@@ -322,16 +319,13 @@ where
 
         let CredentialManagementEnumerateCredentials {
             remaining,
-            rp_dir,
             prev_filename,
         } = cache;
 
-        debug_assert!(prev_filename.is_some());
-
         syscall!(self.trussed.read_dir_first_alphabetical(
             Location::Internal,
-            rp_dir.clone(),
-            prev_filename
+            RK_DIR.into(),
+            Some(prev_filename),
         ))
         .entry;
 
@@ -340,7 +334,8 @@ where
             return Err(Error::NoCredentials);
         };
 
-        if entry.file_name().cmp_lfs(&rp_dir) == Ordering::Greater {
+        // TODO: does this check really make sense?
+        if entry.file_name().cmp_lfs(RK_DIR) == Ordering::Greater {
             // We reached the end of the credentials for the rp
             return Err(Error::NoCredentials);
         }
@@ -356,8 +351,7 @@ where
         if remaining > 1 {
             self.state.runtime.cached_rk = Some(CredentialManagementEnumerateCredentials {
                 remaining: remaining - 1,
-                rp_dir,
-                prev_filename: Some(entry.file_name().into()),
+                prev_filename: entry.file_name().into(),
             });
         }
 
@@ -454,12 +448,13 @@ where
         let credential_id_hash = self.hash(credential.id);
         let mut hex = [b'0'; 16];
         let hex_str = super::format_hex(&credential_id_hash[..8], &mut hex);
-        let dir = PathBuf::from(b"rk");
 
         let mut maybe_entry =
-            try_syscall!(self.trussed.read_dir_first(Location::Internal, dir, None))
-                .ok()?
-                .entry;
+            try_syscall!(self
+                .trussed
+                .read_dir_first(Location::Internal, RK_DIR.into(), None))
+            .ok()?
+            .entry;
         while let Some(entry) = maybe_entry {
             if entry.file_name().as_str().ends_with(&hex_str) {
                 return Some(entry.path().into());
