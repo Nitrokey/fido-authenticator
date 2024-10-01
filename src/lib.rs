@@ -192,6 +192,12 @@ pub enum SigningAlgorithm {
     P256 = -7,
     // #[doc(hidden)]
     // Totp = -9,
+    #[cfg(feature = "backend-dilithium2")]
+    Dilithium2 = -87,
+    #[cfg(feature = "backend-dilithium3")]
+    Dilithium3 = -88,
+    #[cfg(feature = "backend-dilithium3")]
+    Dilithium5 = -89,
 }
 
 impl core::convert::TryFrom<i32> for SigningAlgorithm {
@@ -201,6 +207,12 @@ impl core::convert::TryFrom<i32> for SigningAlgorithm {
             -7 => SigningAlgorithm::P256,
             -8 => SigningAlgorithm::Ed25519,
             // -9 => SigningAlgorithm::Totp,
+            #[cfg(feature = "backend-dilithium2")]
+            -87 => SigningAlgorithm::Dilithium2,
+            #[cfg(feature = "backend-dilithium3")]
+            -88 => SigningAlgorithm::Dilithium3,
+            #[cfg(feature = "backend-dilithium5")]
+            -89 => SigningAlgorithm::Dilithium5,
             _ => return Err(Error::UnsupportedAlgorithm),
         })
     }

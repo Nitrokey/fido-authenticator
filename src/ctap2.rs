@@ -17,7 +17,7 @@ use trussed::{
     syscall, try_syscall,
     types::{
         KeyId, KeySerialization, Location, Mechanism, MediumData, Message, Path, PathBuf,
-        SignatureSerialization,
+        SignatureSerialization, StorageAttributes,
     },
 };
 
@@ -302,6 +302,78 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
                 .serialized_key;
                 let _success = syscall!(self.trussed.delete(public_key)).success;
                 info_now!("deleted public Ed25519 key: {}", _success);
+            }
+            #[cfg(feature = "backend-dilithium2")]
+            SigningAlgorithm::Dilithium2 => {
+                private_key = syscall!(self.trussed.generate_key(
+                    Mechanism::Dilithium2,
+                    StorageAttributes::new().set_persistence(location)
+                ))
+                .key;
+                public_key = syscall!(self.trussed.derive_key(
+                    Mechanism::Dilithium2,
+                    private_key,
+                    None,
+                    StorageAttributes::new().set_persistence(Location::Volatile),
+                ))
+                .key;
+                cose_public_key = syscall!(self.trussed.serialize_key(
+                    Mechanism::Dilithium2,
+                    public_key,
+                    KeySerialization::Cose
+                ))
+                .serialized_key;
+
+                let _success = syscall!(self.trussed.delete(public_key)).success;
+                info_now!("deleted public Dilithium2 key: {}", _success);
+            }
+            #[cfg(feature = "backend-dilithium3")]
+            SigningAlgorithm::Dilithium3 => {
+                private_key = syscall!(self.trussed.generate_key(
+                    Mechanism::Dilithium3,
+                    StorageAttributes::new().set_persistence(location)
+                ))
+                .key;
+                public_key = syscall!(self.trussed.derive_key(
+                    Mechanism::Dilithium3,
+                    private_key,
+                    None,
+                    StorageAttributes::new().set_persistence(Location::Volatile),
+                ))
+                .key;
+                cose_public_key = syscall!(self.trussed.serialize_key(
+                    Mechanism::Dilithium3,
+                    public_key,
+                    KeySerialization::Cose
+                ))
+                .serialized_key;
+
+                let _success = syscall!(self.trussed.delete(public_key)).success;
+                info_now!("deleted public Dilithium3 key: {}", _success);
+            }
+            #[cfg(feature = "backend-dilithium5")]
+            SigningAlgorithm::Dilithium5 => {
+                private_key = syscall!(self.trussed.generate_key(
+                    Mechanism::Dilithium5,
+                    StorageAttributes::new().set_persistence(location)
+                ))
+                .key;
+                public_key = syscall!(self.trussed.derive_key(
+                    Mechanism::Dilithium5,
+                    private_key,
+                    None,
+                    StorageAttributes::new().set_persistence(Location::Volatile),
+                ))
+                .key;
+                cose_public_key = syscall!(self.trussed.serialize_key(
+                    Mechanism::Dilithium5,
+                    public_key,
+                    KeySerialization::Cose
+                ))
+                .serialized_key;
+
+                let _success = syscall!(self.trussed.delete(public_key)).success;
+                info_now!("deleted public Dilithium5 key: {}", _success);
             } // SigningAlgorithm::Totp => {
               //     if parameters.client_data_hash.len() != 32 {
               //         return Err(Error::InvalidParameter);
@@ -515,6 +587,49 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
                                     ))
                                     .signature;
                                     (der_signature.to_bytes().map_err(|_| Error::Other)?, -7)
+                                }
+
+                                #[cfg(feature = "backend-dilithium2")]
+                                SigningAlgorithm::Dilithium2 => {
+                                    let signature = syscall!(self.trussed.sign(
+                                        Mechanism::Dilithium2,
+                                        private_key,
+                                        &commitment,
+                                        SignatureSerialization::Raw
+                                    ))
+                                    .signature;
+                                    (
+                                        signature.to_bytes().map_err(|_| Error::Other)?,
+                                        SigningAlgorithm::Dilithium2 as i32,
+                                    )
+                                }
+                                #[cfg(feature = "backend-dilithium3")]
+                                SigningAlgorithm::Dilithium3 => {
+                                    let signature = syscall!(self.trussed.sign(
+                                        Mechanism::Dilithium3,
+                                        private_key,
+                                        &commitment,
+                                        SignatureSerialization::Raw
+                                    ))
+                                    .signature;
+                                    (
+                                        signature.to_bytes().map_err(|_| Error::Other)?,
+                                        SigningAlgorithm::Dilithium3 as i32,
+                                    )
+                                }
+                                #[cfg(feature = "backend-dilithium5")]
+                                SigningAlgorithm::Dilithium5 => {
+                                    let signature = syscall!(self.trussed.sign(
+                                        Mechanism::Dilithium5,
+                                        private_key,
+                                        &commitment,
+                                        SignatureSerialization::Raw
+                                    ))
+                                    .signature;
+                                    (
+                                        signature.to_bytes().map_err(|_| Error::Other)?,
+                                        SigningAlgorithm::Dilithium5 as i32,
+                                    )
                                 }
                             }
                         }
