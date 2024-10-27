@@ -19,11 +19,13 @@ use sha2::{Digest as _, Sha256};
 use trussed_core::{
     syscall, try_syscall,
     types::{
-        KeyId, KeyId, KeySerialization, KeySerialization, Location, Location, Mechanism, Mechanism,
-        MediumData, MediumData, Message, Message, Path, PathBuf, SignatureSerialization,
-        SignatureSerialization, StorageAttributes, StorageAttributes,
+        KeyId, KeySerialization, Location, Mechanism, MediumData, Message, Path, PathBuf,
+        SignatureSerialization,
     },
 };
+
+#[cfg(feature = "backend-dilithium")]
+use trussed::types::StorageAttributes;
 
 use crate::{
     constants::{self, MAX_RESIDENT_CREDENTIALS_GUESSTIMATE},

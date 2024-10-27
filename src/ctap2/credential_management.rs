@@ -5,8 +5,11 @@ use core::{cmp, convert::TryFrom, num::NonZeroU32};
 use littlefs2_core::{Path, PathBuf};
 use trussed_core::{
     syscall, try_syscall,
-    types::{DirEntry, Location, Path, PathBuf, StorageAttributes},
+    types::{DirEntry, Location, Path, PathBuf},
 };
+
+#[cfg(feature = "backend-dilithium")]
+use trussed::types::StorageAttributes;
 
 use cosey::PublicKey;
 use ctap_types::{
