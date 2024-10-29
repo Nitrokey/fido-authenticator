@@ -307,7 +307,7 @@ where
             self.state.runtime.cached_rk = Some(CredentialManagementEnumerateCredentials {
                 remaining: num_rks - 1,
                 rp_dir: rk_dir,
-                prev_filename: Some(first_rk.file_name().into()),
+                prev_filename: first_rk.file_name().into(),
             });
         }
 
@@ -330,12 +330,10 @@ where
             prev_filename,
         } = cache;
 
-        debug_assert!(prev_filename.is_some());
-
         syscall!(self.trussed.read_dir_first_alphabetical(
             Location::Internal,
             rp_dir.clone(),
-            prev_filename
+            Some(prev_filename),
         ))
         .entry;
 
@@ -361,7 +359,7 @@ where
             self.state.runtime.cached_rk = Some(CredentialManagementEnumerateCredentials {
                 remaining: remaining - 1,
                 rp_dir,
-                prev_filename: Some(entry.file_name().into()),
+                prev_filename: entry.file_name().into(),
             });
         }
 
