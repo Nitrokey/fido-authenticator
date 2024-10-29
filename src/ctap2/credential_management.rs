@@ -302,15 +302,13 @@ where
         response.total_credentials = Some(num_rks);
 
         // cache state for next call
-        if let Some(num_rks) = response.total_credentials {
-            if num_rks > 1 {
-                // let rp_id_hash = response.rp_id_hash.as_ref().unwrap().clone();
-                self.state.runtime.cached_rk = Some(CredentialManagementEnumerateCredentials {
-                    remaining: num_rks - 1,
-                    rp_dir: rk_dir,
-                    prev_filename: Some(first_rk.file_name().into()),
-                });
-            }
+        if num_rks > 1 {
+            // let rp_id_hash = response.rp_id_hash.as_ref().unwrap().clone();
+            self.state.runtime.cached_rk = Some(CredentialManagementEnumerateCredentials {
+                remaining: num_rks - 1,
+                rp_dir: rk_dir,
+                prev_filename: Some(first_rk.file_name().into()),
+            });
         }
 
         Ok(response)
