@@ -261,14 +261,13 @@ where
         let mut hex = [b'0'; 16];
         super::format_hex(&rp_id_hash[..8], &mut hex);
 
-        let rk_dir = PathBuf::from(RK_DIR);
         let rp_dir_start = PathBuf::try_from(&hex).unwrap();
 
         let mut num_rks = 0;
 
         let mut maybe_entry = syscall!(self.trussed.read_dir_first_alphabetical(
             Location::Internal,
-            rk_dir.clone(),
+            PathBuf::from(RK_DIR),
             Some(rp_dir_start.clone())
         ))
         .entry;
@@ -306,7 +305,6 @@ where
             // let rp_id_hash = response.rp_id_hash.as_ref().unwrap().clone();
             self.state.runtime.cached_rk = Some(CredentialManagementEnumerateCredentials {
                 remaining: num_rks - 1,
-                rp_dir: rk_dir,
                 prev_filename: first_rk.file_name().into(),
             });
         }
@@ -326,13 +324,12 @@ where
 
         let CredentialManagementEnumerateCredentials {
             remaining,
-            rp_dir,
             prev_filename,
         } = cache;
 
         syscall!(self.trussed.read_dir_first_alphabetical(
             Location::Internal,
-            rp_dir.clone(),
+            PathBuf::from(RK_DIR),
             Some(prev_filename),
         ))
         .entry;
@@ -342,7 +339,10 @@ where
             return Err(Error::NoCredentials);
         };
 
-        if entry.file_name().cmp_lfs(&rp_dir) == Ordering::Greater {
+        // TODO:
+        // I think this check is not doing what it’s supposed to do -- we would need to check that the
+        // credential actually belongs to the RP.
+        if entry.file_name().cmp_lfs(RK_DIR) == Ordering::Greater {
             // We reached the end of the credentials for the rp
             return Err(Error::NoCredentials);
         }
@@ -358,7 +358,6 @@ where
         if remaining > 1 {
             self.state.runtime.cached_rk = Some(CredentialManagementEnumerateCredentials {
                 remaining: remaining - 1,
-                rp_dir,
                 prev_filename: entry.file_name().into(),
             });
         }

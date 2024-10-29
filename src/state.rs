@@ -210,7 +210,6 @@ pub struct CredentialManagementEnumerateRps {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct CredentialManagementEnumerateCredentials {
     pub remaining: u32,
-    pub rp_dir: PathBuf,
     pub prev_filename: PathBuf,
 }
 
