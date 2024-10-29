@@ -200,17 +200,9 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
 
         let mut algorithm: Option<SigningAlgorithm> = None;
         for param in parameters.pub_key_cred_params.0.iter() {
-            match param.alg {
-                -7 => {
-                    if algorithm.is_none() {
-                        algorithm = Some(SigningAlgorithm::P256);
-                    }
-                }
-                -8 => {
-                    algorithm = Some(SigningAlgorithm::Ed25519);
-                }
-                // -9 => { algorithm = Some(SigningAlgorithm::Totp); }
-                _ => {}
+            if let Ok(alg) = SigningAlgorithm::try_from(param.alg) {
+                algorithm = Some(alg);
+                break;
             }
         }
         let algorithm = algorithm.ok_or(Error::UnsupportedAlgorithm)?;
@@ -1626,6 +1618,12 @@ impl<UP: UserPresence, T: TrussedRequirements> crate::Authenticator<UP, T> {
                     //     info_now!("found it");
                     //     exists
                     // }
+                    #[cfg(feature = "backend-dilithium2")]
+                    -87 => syscall!(self.trussed.exists(Mechanism::Dilithium2, *key)).exists,
+                    #[cfg(feature = "backend-dilithium3")]
+                    -88 => syscall!(self.trussed.exists(Mechanism::Dilithium3, *key)).exists,
+                    #[cfg(feature = "backend-dilithium5")]
+                    -89 => syscall!(self.trussed.exists(Mechanism::Dilithium5, *key)).exists,
                     _ => false,
                 }
             }
@@ -1808,6 +1806,12 @@ impl<UP: UserPresence, T: TrussedRequirements> crate::Authenticator<UP, T> {
             -7 => (Mechanism::P256, SignatureSerialization::Asn1Der),
             -8 => (Mechanism::Ed255, SignatureSerialization::Raw),
             // -9 => (Mechanism::Totp, SignatureSerialization::Raw),
+            #[cfg(feature = "backend-dilithium2")]
+            -87 => (Mechanism::Dilithium2, SignatureSerialization::Raw),
+            #[cfg(feature = "backend-dilithium3")]
+            -88 => (Mechanism::Dilithium3, SignatureSerialization::Raw),
+            #[cfg(feature = "backend-dilithium5")]
+            -89 => (Mechanism::Dilithium5, SignatureSerialization::Raw),
             _ => {
                 return Err(Error::Other);
             }

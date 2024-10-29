@@ -193,7 +193,7 @@ pub(crate) fn msp() -> u32 {
     0x2000_0000
 }
 
-/// Currently Ed25519 and P256.
+/// Currently Ed25519, P256, and Dilithium 2/3/5
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[repr(i32)]
 #[non_exhaustive]
