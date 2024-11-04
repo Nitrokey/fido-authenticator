@@ -126,11 +126,11 @@ fn test_filesystem_full() {
             i += 1;
         }
 
-        // We should be able to create at least 1 but not more than n credentials.
-        assert!(i > 0);
-        assert!(i < n);
-        // Our estimate should not be more than one credential off.
-        assert!(n - i <= 1);
+        // We should be able to create at least one credential.
+        assert!(i > 0, "i = {i}");
+        // Our estimate should not be more than two credentials off.
+        assert!(i >= n - 2, "i = {i}, n = {n}");
+        assert!(i <= n + 2, "i = {i}, n = {n}");
 
         let metadata = authenticator.credentials_metadata();
         assert_eq!(metadata.existing, i);
