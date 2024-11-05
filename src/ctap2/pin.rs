@@ -4,6 +4,7 @@ use ctap_types::{ctap2::client_pin::Permissions, Error, Result};
 use trussed::{
     cbor_deserialize, cbor_serialize_bytes,
     client::{CryptoClient, HmacSha256, P256},
+    config::MAX_MESSAGE_LENGTH,
     syscall, try_syscall,
     types::{
         Bytes, KeyId, KeySerialization, Location, Mechanism, Message, ShortData, StorageAttributes,
@@ -429,7 +430,11 @@ impl SharedSecret {
     }
 
     #[must_use]
-    pub fn encrypt<T: CryptoClient>(&self, trussed: &mut T, data: &[u8]) -> Bytes<1024> {
+    pub fn encrypt<T: CryptoClient>(
+        &self,
+        trussed: &mut T,
+        data: &[u8],
+    ) -> Bytes<MAX_MESSAGE_LENGTH> {
         let key_id = self.aes_key_id();
         let iv = self.generate_iv(trussed);
         let mut ciphertext =
@@ -442,7 +447,7 @@ impl SharedSecret {
     }
 
     #[must_use]
-    fn wrap<T: CryptoClient>(&self, trussed: &mut T, key: KeyId) -> Bytes<1024> {
+    fn wrap<T: CryptoClient>(&self, trussed: &mut T, key: KeyId) -> Bytes<MAX_MESSAGE_LENGTH> {
         let wrapping_key = self.aes_key_id();
         let iv = self.generate_iv(trussed);
         let mut wrapped_key = syscall!(trussed.wrap_key(
@@ -460,7 +465,11 @@ impl SharedSecret {
     }
 
     #[must_use]
-    pub fn decrypt<T: CryptoClient>(&self, trussed: &mut T, data: &[u8]) -> Option<Bytes<1024>> {
+    pub fn decrypt<T: CryptoClient>(
+        &self,
+        trussed: &mut T,
+        data: &[u8],
+    ) -> Option<Bytes<MAX_MESSAGE_LENGTH>> {
         let key_id = self.aes_key_id();
         let (iv, data) = match self {
             Self::V1 { .. } => (Default::default(), data),
