@@ -208,7 +208,7 @@ pub enum SigningAlgorithm {
     Dilithium2 = -87,
     #[cfg(feature = "backend-dilithium3")]
     Dilithium3 = -88,
-    #[cfg(feature = "backend-dilithium3")]
+    #[cfg(feature = "backend-dilithium5")]
     Dilithium5 = -89,
 }
 

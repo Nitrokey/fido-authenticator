@@ -5,6 +5,7 @@ use core::cmp::Ordering;
 use serde::Serialize;
 use serde_bytes::ByteArray;
 use trussed_core::{
+    config::MAX_FIDO_WRAPPED_KEY_LENGTH,
     mechanisms::{Chacha8Poly1305, Sha256},
     syscall, try_syscall,
     types::{EncryptedData, KeyId},
@@ -90,7 +91,7 @@ pub(crate) type SerializedCredential = trussed_core::types::Message;
 pub enum Key {
     ResidentKey(KeyId),
     // THIS USED TO BE 92 NOW IT'S 96 or 97 or so... waddup?
-    WrappedKey(Bytes<128>),
+    WrappedKey(Bytes<MAX_FIDO_WRAPPED_KEY_LENGTH>),
 }
 
 /// A credential that is managed by the authenticator.
