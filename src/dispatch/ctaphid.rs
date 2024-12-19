@@ -3,7 +3,7 @@ use ctaphid_dispatch::app as ctaphid;
 #[allow(unused_imports)]
 use crate::msp;
 use crate::{Authenticator, TrussedRequirements, UserPresence};
-use trussed::interrupt::InterruptFlag;
+use trussed_core::InterruptFlag;
 
 impl<UP, T> ctaphid::App<'static> for Authenticator<UP, T>
 where

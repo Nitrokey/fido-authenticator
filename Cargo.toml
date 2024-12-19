@@ -15,6 +15,7 @@ name = "usbip"
 required-features = ["dispatch"]
 
 [dependencies]
+cbor-smol = { version = "0.5" }
 ctap-types = { version = "0.3.1", features = ["get-info-full", "large-blobs", "third-party-payment"] }
 cosey = "0.3"
 delog = "0.1.0"
@@ -24,8 +25,7 @@ serde = { version = "1.0", default-features = false }
 serde_bytes = { version = "0.11.14", default-features = false }
 serde-indexed = "0.1.0"
 sha2 = { version = "0.10", default-features = false }
-trussed = "0.1"
-trussed-core = "0.1"
+trussed-core = { version = "0.1", features = ["aes256-cbc", "certificate-client", "chacha8-poly1305", "crypto-client", "ed255", "filesystem-client", "hmac-sha256", "management-client", "p256", "sha256", "ui-client"] }
 trussed-fs-info = "0.1.0"
 trussed-hkdf = { version = "0.2.0" }
 trussed-chunked = { version = "0.1.0", optional = true }
@@ -33,10 +33,6 @@ trussed-chunked = { version = "0.1.0", optional = true }
 apdu-app = { version = "0.1", optional = true }
 ctaphid-dispatch = { version = "0.1", optional = true }
 iso7816 = { version = "0.1.2", optional = true }
-
-# This dependency is used indirectly via Trussed.  We only want to make sure that we use at least
-# 0.4.1 so that the persistent state is deserialized correctly.
-cbor-smol = { version = ">= 0.4.1" }
 
 [features]
 dispatch = ["apdu-dispatch", "ctaphid-dispatch", "iso7816"]
@@ -82,12 +78,12 @@ x509-parser = "0.16.0"
 features = ["dispatch"]
 
 [patch.crates-io]
-ctaphid-dispatch = { git = "https://github.com/trussed-dev/ctaphid-dispatch.git", rev = "57cb3317878a8593847595319aa03ef17c29ec5b" }
-trussed = { git = "https://github.com/trussed-dev/trussed.git", rev = "eadd27cda0f457caae609e7fa972277e46695bd3" }
-trussed-core = { git = "https://github.com/trussed-dev/trussed.git", rev = "eadd27cda0f457caae609e7fa972277e46695bd3" }
-trussed-chunked = { git = "https://github.com/trussed-dev/trussed-staging.git", tag = "chunked-v0.1.0" }
-trussed-fs-info = { git = "https://github.com/trussed-dev/trussed-staging.git", rev = "fs-info-v0.1.0" }
-trussed-hkdf = { git = "https://github.com/trussed-dev/trussed-staging.git", tag = "hkdf-v0.2.0" }
-trussed-staging = { git = "https://github.com/trussed-dev/trussed-staging.git", rev = "53eba84d2cd0bcacc3a7096d4b7a2490dcf6f069" }
+ctaphid-dispatch = { git = "https://github.com/trussed-dev/ctaphid-dispatch.git", branch = "trussed-core" }
+trussed = { git = "https://github.com/trussed-dev/trussed.git", branch = "core-modules" }
+trussed-core = { git = "https://github.com/trussed-dev/trussed.git", branch = "core-modules" }
+trussed-chunked = { git = "https://github.com/trussed-dev/trussed-staging.git", branch = "trussed-core" }
+trussed-fs-info = { git = "https://github.com/trussed-dev/trussed-staging.git", branch = "trussed-core" }
+trussed-hkdf = { git = "https://github.com/trussed-dev/trussed-staging.git", branch = "trussed-core" }
+trussed-staging = { git = "https://github.com/trussed-dev/trussed-staging.git", branch = "trussed-core" }
 trussed-usbip = { git = "https://github.com/Nitrokey/pc-usbip-runner.git", tag = "v0.0.1-nitrokey.5" }
-usbd-ctaphid = { git = "https://github.com/trussed-dev/usbd-ctaphid.git", rev = "dcff9009c3cd1ef9e5b09f8f307aca998fc9a8c8" }
+usbd-ctaphid = { git = "https://github.com/trussed-dev/usbd-ctaphid.git", branch = "trussed-core" }
