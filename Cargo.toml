@@ -31,12 +31,13 @@ trussed-hkdf = { version = "0.2.0" }
 trussed-chunked = { version = "0.1.0", optional = true }
 
 apdu-app = { version = "0.1", optional = true }
-ctaphid-dispatch = { version = "0.1", optional = true }
+ctaphid-app = { version = "0.1", optional = true }
 iso7816 = { version = "0.1.2", optional = true }
 
 [features]
 dispatch = ["apdu-dispatch", "ctaphid-dispatch", "iso7816"]
 apdu-dispatch = ["dep:apdu-app"]
+ctaphid-dispatch = ["dep:ctaphid-app"]
 disable-reset-time-window = []
 
 # enables support for a large-blob array longer than 1024 bytes
@@ -78,7 +79,8 @@ x509-parser = "0.16.0"
 features = ["dispatch"]
 
 [patch.crates-io]
-ctaphid-dispatch = { git = "https://github.com/trussed-dev/ctaphid-dispatch.git", branch = "trussed-core" }
+ctaphid-app = { git = "https://github.com/trussed-dev/ctaphid-dispatch.git", branch = "trait" }
+ctaphid-dispatch = { git = "https://github.com/trussed-dev/ctaphid-dispatch.git", branch = "trait" }
 trussed = { git = "https://github.com/trussed-dev/trussed.git", branch = "core-modules" }
 trussed-core = { git = "https://github.com/trussed-dev/trussed.git", branch = "core-modules" }
 trussed-chunked = { git = "https://github.com/trussed-dev/trussed-staging.git", branch = "trussed-core" }
