@@ -1,5 +1,5 @@
 use ctaphid_app::{App, Command, Error};
-use heapless::Vec;
+use heapless_bytes::Bytes;
 use trussed_core::InterruptFlag;
 
 #[allow(unused_imports)]
@@ -20,7 +20,7 @@ where
         &mut self,
         command: Command,
         request: &[u8],
-        response: &mut Vec<u8, N>,
+        response: &mut Bytes<N>,
     ) -> Result<(), Error> {
         debug_now!(
             "ctaphid-dispatch: remaining stack: {} bytes",
