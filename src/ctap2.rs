@@ -415,11 +415,6 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
             }
 
             if key_store_full {
-                // If we previously deleted an existing cred with the same RP + UserId but then
-                // failed to store the new cred, the RP directory could now be empty.  This is not
-                // a valid state so we have to delete it.
-                let rp_dir = rp_path_prefix(&rp_id_hash);
-                self.delete_rp_dir_if_empty(rp_dir);
                 return Err(Error::KeyStoreFull);
             }
         }
@@ -1873,25 +1868,6 @@ impl<UP: UserPresence, T: TrussedRequirements> crate::Authenticator<UP, T> {
             .remove_file(Location::Internal, PathBuf::from(rk_path),));
 
         Ok(())
-    }
-
-    pub(crate) fn delete_rp_dir_if_empty(&mut self, rp_path: PathBuf) {
-        let maybe_first_remaining_rk =
-            syscall!(self
-                .trussed
-                .read_dir_first(Location::Internal, rp_path.clone(), None,))
-            .entry;
-
-        if let Some(_first_remaining_rk) = maybe_first_remaining_rk {
-            info!(
-                "not deleting deleting parent {:?} as there is {:?}",
-                &rp_path,
-                &_first_remaining_rk.path(),
-            );
-        } else {
-            info!("deleting parent {:?} as this was its last RK", &rp_path);
-            try_syscall!(self.trussed.remove_dir(Location::Internal, rp_path,)).ok();
-        }
     }
 
     fn large_blobs_get(

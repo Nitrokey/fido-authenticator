@@ -485,13 +485,6 @@ where
         // DELETE
         self.delete_resident_key_by_path(&rk_path)?;
 
-        // get rid of directory if it's now empty
-        let rp_path = rk_path
-            .parent()
-            // by construction, RK has a parent, its RP
-            .unwrap();
-        self.delete_rp_dir_if_empty(rp_path);
-
         // just return OK
         let response = Default::default();
         Ok(response)
