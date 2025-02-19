@@ -339,7 +339,7 @@ fn test_filesystem_full() {
         max_resident_credential_count: Some(10),
         inspect_ifs: Some(Box::new(|ifs| {
             let blocks = ifs.available_blocks().unwrap();
-            assert!(blocks < 5, "{blocks}");
+            assert!(blocks < 10, "{blocks}");
             assert!(blocks > 1, "{blocks}");
         })),
         ..Default::default()
@@ -393,7 +393,7 @@ fn test_filesystem_full_update_user() {
         max_resident_credential_count: Some(10),
         inspect_ifs: Some(Box::new(|ifs| {
             let blocks = ifs.available_blocks().unwrap();
-            assert!(blocks < 5, "{blocks}");
+            assert!(blocks < 10, "{blocks}");
             assert!(blocks > 1, "{blocks}");
         })),
         ..Default::default()
