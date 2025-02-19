@@ -1215,7 +1215,11 @@ impl<UP: UserPresence, T: TrussedRequirements> crate::Authenticator<UP, T> {
         .entry;
 
         while let Some(entry) = maybe_entry.take() {
-            if !entry.file_name().as_ref().starts_with(file_name_prefix.as_ref()) {
+            if !entry
+                .file_name()
+                .as_ref()
+                .starts_with(file_name_prefix.as_ref())
+            {
                 // We got past all credentials for the relevant RP
                 break;
             }
@@ -1791,20 +1795,32 @@ impl<UP: UserPresence, T: TrussedRequirements> crate::Authenticator<UP, T> {
         user_id: &Bytes<64>,
     ) -> Result<()> {
         // Prepare to iterate over all credentials associated to RP.
-        let rp_path = rp_path_prefix(rp_id_hash);
-        let mut entry = syscall!(self
-            .trussed
-            .read_dir_first(Location::Internal, rp_path, None,))
+        let file_name_prefix = rp_file_name_prefix(rp_id_hash);
+        let mut maybe_entry = syscall!(self.trussed.read_dir_first_alphabetical(
+            Location::Internal,
+            PathBuf::from(RK_DIR),
+            Some(file_name_prefix.clone())
+        ))
         .entry;
 
-        loop {
+        while let Some(entry) = maybe_entry.take() {
+            if !entry
+                .file_name()
+                .as_ref()
+                .starts_with(file_name_prefix.as_ref())
+            {
+                // We got past all credentials for the relevant RP
+                break;
+            }
+
+            if entry.file_name() == &*file_name_prefix {
+                debug_assert!(entry.metadata().is_dir());
+                error!("Migration missing");
+                return Err(Error::Other);
+            }
+
             info_now!("this may be an RK: {:?}", &entry);
-            let rk_path = match entry {
-                // no more RKs left
-                // break breaks inner loop here
-                None => break,
-                Some(entry) => PathBuf::from(entry.path()),
-            };
+            let rk_path = PathBuf::from(entry.path());
 
             info_now!("checking RK {:?} for userId ", &rk_path);
             let credential_data =
@@ -1832,7 +1848,7 @@ impl<UP: UserPresence, T: TrussedRequirements> crate::Authenticator<UP, T> {
             }
 
             // prepare for next loop iteration
-            entry = syscall!(self.trussed.read_dir_next()).entry;
+            maybe_entry = syscall!(self.trussed.read_dir_next()).entry;
         }
 
         Ok(())
@@ -2070,7 +2086,6 @@ impl TryFrom<AttestationStatementFormat> for SupportedAttestationFormat {
 //   rk/<rp_id_hash>.<credential_id_hash>
 // The hashes are truncated to the first eight bytes and formatted as hex strings.
 // We use the following terms for the components:
-//   rp_path_prefix:       rk/<rp_id_hash>
 //   rk_path:              rk/<rp_id_hash>.<credential_id_hash>
 //   rp_file_name_prefix:  <rp_id_hash>
 
@@ -2078,17 +2093,6 @@ fn rp_file_name_prefix(rp_id_hash: &[u8; 32]) -> PathBuf {
     let mut hex = [b'0'; 16];
     super::format_hex(&rp_id_hash[..8], &mut hex);
     PathBuf::try_from(&hex).unwrap()
-}
-
-fn rp_path_prefix(rp_id_hash: &[u8; 32]) -> PathBuf {
-    // uses only first 8 bytes of hash, which should be "good enough"
-    let mut hex = [0; 17];
-    format_hex(&rp_id_hash[..8], &mut hex[..16]);
-
-    let mut dir = PathBuf::from(RK_DIR);
-    dir.push(Path::from_bytes_with_nul(&hex).unwrap());
-
-    dir
 }
 
 fn rk_path(rp_id_hash: &[u8; 32], credential_id_hash: &[u8; 32]) -> PathBuf {
@@ -2105,7 +2109,7 @@ fn rk_path(rp_id_hash: &[u8; 32], credential_id_hash: &[u8; 32]) -> PathBuf {
 
 #[cfg(test)]
 mod tests {
-    use super::{rk_path, rp_file_name_prefix, rp_path_prefix};
+    use super::{rk_path, rp_file_name_prefix};
 
     const TEST_HASH: &[u8; 32] = &[
         134, 54, 157, 96, 10, 28, 233, 79, 219, 59, 195, 125, 165, 251, 120, 14, 49, 152, 212, 191,
@@ -2117,15 +2121,6 @@ mod tests {
     fn test_rp_file_name_prefix() {
         assert_eq!(rp_file_name_prefix(&[0; 32]).as_str(), "0000000000000000");
         assert_eq!(rp_file_name_prefix(TEST_HASH).as_str(), TEST_HASH_HEX);
-    }
-
-    #[test]
-    fn test_rp_path_prefix() {
-        assert_eq!(rp_path_prefix(&[0; 32]).as_str(), "rk/0000000000000000");
-        assert_eq!(
-            rp_path_prefix(TEST_HASH).as_str(),
-            &format!("rk/{TEST_HASH_HEX}")
-        );
     }
 
     #[test]

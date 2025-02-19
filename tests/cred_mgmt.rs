@@ -31,6 +31,8 @@ impl<'a> CredMgmt<'a> {
         self.authenticator
             .make_credential(rp.clone(), user.clone())
             .inspect(|credential_data| {
+                self.credentials
+                    .retain(|(old_rp, old_user, _)| old_rp != &rp || old_user != &user);
                 self.credentials.push((rp, user, credential_data.clone()));
             })
     }
@@ -163,6 +165,32 @@ fn test_list_credentials_multi() {
                 cred_mgmt.make_credential(rp.clone(), user).unwrap();
             }
         }
+
+        cred_mgmt.list();
+    })
+}
+
+#[test]
+fn test_list_credentials_overwrite() {
+    let options = Options {
+        inspect_ifs: Some(Box::new(move |ifs| {
+            let mut files = list_fs(ifs);
+            files.remove_standard();
+            files.remove_state();
+            assert_eq!(files.try_remove_keys(), 2);
+            assert_eq!(files.try_remove_rks(), 1);
+            files.assert_empty();
+        })),
+        ..Default::default()
+    };
+
+    virt::run_ctap2_with_options(options, |device| {
+        let authenticator = Authenticator::new(device).set_pin(b"123456");
+        let mut cred_mgmt = CredMgmt::new(authenticator);
+        let rp = generate_rp(0);
+        let user = generate_user(0);
+        cred_mgmt.make_credential(rp.clone(), user.clone()).unwrap();
+        cred_mgmt.make_credential(rp, user).unwrap();
 
         cred_mgmt.list();
     })
