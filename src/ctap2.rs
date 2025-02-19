@@ -418,7 +418,7 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
                 // If we previously deleted an existing cred with the same RP + UserId but then
                 // failed to store the new cred, the RP directory could now be empty.  This is not
                 // a valid state so we have to delete it.
-                let rp_dir = rp_rk_dir(&rp_id_hash);
+                let rp_dir = rp_path_prefix(&rp_id_hash);
                 self.delete_rp_dir_if_empty(rp_dir);
                 return Err(Error::KeyStoreFull);
             }
@@ -1211,7 +1211,7 @@ impl<UP: UserPresence, T: TrussedRequirements> crate::Authenticator<UP, T> {
         use crate::state::CachedCredential;
         use core::str::FromStr;
 
-        let rp_rk_dir = rp_rk_dir(rp_id_hash);
+        let rp_rk_dir = rp_path_prefix(rp_id_hash);
         let mut maybe_entry = syscall!(self.trussed.read_dir_first_alphabetical(
             Location::Internal,
             PathBuf::from(RK_DIR),
@@ -1796,7 +1796,7 @@ impl<UP: UserPresence, T: TrussedRequirements> crate::Authenticator<UP, T> {
         user_id: &Bytes<64>,
     ) -> Result<()> {
         // Prepare to iterate over all credentials associated to RP.
-        let rp_path = rp_rk_dir(rp_id_hash);
+        let rp_path = rp_path_prefix(rp_id_hash);
         let mut entry = syscall!(self
             .trussed
             .read_dir_first(Location::Internal, rp_path, None,))
@@ -2090,24 +2090,101 @@ impl TryFrom<AttestationStatementFormat> for SupportedAttestationFormat {
     }
 }
 
-fn rp_rk_dir(rp_id_hash: &[u8; 32]) -> PathBuf {
-    // uses only first 8 bytes of hash, which should be "good enough"
+// The new path scheme for disvoerable credentials (= resident keys) is:
+//   rk/<rp_id_hash>.<credential_id_hash>
+// The hashes are truncated to the first eight bytes and formatted as hex strings.
+// We use the following terms for the components:
+//   rp_path_prefix:       rk/<rp_id_hash>
+//   rk_path:              rk/<rp_id_hash>.<credential_id_hash>
+//   rp_file_name_prefix:  <rp_id_hash>
+
+fn rp_file_name_prefix(rp_id_hash: &[u8; 32]) -> PathBuf {
     let mut hex = [b'0'; 16];
-    format_hex(&rp_id_hash[..8], &mut hex);
+    super::format_hex(&rp_id_hash[..8], &mut hex);
+    PathBuf::try_from(&hex).unwrap()
+}
+
+fn rp_path_prefix(rp_id_hash: &[u8; 32]) -> PathBuf {
+    // uses only first 8 bytes of hash, which should be "good enough"
+    let mut hex = [0; 17];
+    format_hex(&rp_id_hash[..8], &mut hex[..16]);
 
     let mut dir = PathBuf::from(RK_DIR);
-    dir.push(&PathBuf::try_from(&hex).unwrap());
+    dir.push(Path::from_bytes_with_nul(&hex).unwrap());
 
     dir
 }
 
 fn rk_path(rp_id_hash: &[u8; 32], credential_id_hash: &[u8; 32]) -> PathBuf {
-    let mut buf = [0; 33];
+    // 16 bytes per hash + dot + trailing zero = 34
+    let mut buf = [0; 34];
     buf[16] = b'.';
     format_hex(&rp_id_hash[..8], &mut buf[..16]);
-    format_hex(&credential_id_hash[..8], &mut buf[17..]);
+    format_hex(&credential_id_hash[..8], &mut buf[17..33]);
 
     let mut path = PathBuf::from(RK_DIR);
-    path.push(&PathBuf::try_from(buf.as_slice()).unwrap());
+    path.push(Path::from_bytes_with_nul(&buf).unwrap());
     path
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{rk_path, rp_file_name_prefix, rp_path_prefix};
+
+    const TEST_HASH: &[u8; 32] = &[
+        134, 54, 157, 96, 10, 28, 233, 79, 219, 59, 195, 125, 165, 251, 120, 14, 49, 152, 212, 191,
+        114, 137, 180, 207, 255, 177, 187, 106, 173, 1, 203, 171,
+    ];
+    const TEST_HASH_HEX: &str = "86369d600a1ce94f";
+
+    #[test]
+    fn test_rp_file_name_prefix() {
+        assert_eq!(rp_file_name_prefix(&[0; 32]).as_str(), "0000000000000000");
+        assert_eq!(rp_file_name_prefix(TEST_HASH).as_str(), TEST_HASH_HEX);
+    }
+
+    #[test]
+    fn test_rp_path_prefix() {
+        assert_eq!(rp_path_prefix(&[0; 32]).as_str(), "rk/0000000000000000");
+        assert_eq!(
+            rp_path_prefix(TEST_HASH).as_str(),
+            &format!("rk/{TEST_HASH_HEX}")
+        );
+    }
+
+    #[test]
+    fn test_rk_path() {
+        fn test(rp_id_hash: &[u8; 32], credential_id_hash: &[u8; 32], expected: &str) {
+            println!("rp_id_hash: {rp_id_hash:?}");
+            println!("credential_id_hash: {credential_id_hash:?}");
+            let actual = rk_path(rp_id_hash, credential_id_hash);
+            assert_eq!(actual.as_str(), expected);
+        }
+
+        let input_zero = &[0; 32];
+        let output_zero = "0000000000000000";
+        let input_nonzero = TEST_HASH;
+        let output_nonzero = TEST_HASH_HEX;
+
+        test(
+            input_zero,
+            input_zero,
+            &format!("rk/{output_zero}.{output_zero}"),
+        );
+        test(
+            input_zero,
+            input_nonzero,
+            &format!("rk/{output_zero}.{output_nonzero}"),
+        );
+        test(
+            input_nonzero,
+            input_zero,
+            &format!("rk/{output_nonzero}.{output_zero}"),
+        );
+        test(
+            input_nonzero,
+            input_nonzero,
+            &format!("rk/{output_nonzero}.{output_nonzero}"),
+        );
+    }
 }

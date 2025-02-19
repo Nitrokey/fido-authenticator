@@ -60,7 +60,7 @@ where
 }
 
 /// Get the hex hashed ID of the RP from the filename of a RP directory OR a "new" RK path
-fn get_id_hex(entry: &DirEntry) -> &str {
+fn get_rp_id_hex(entry: &DirEntry) -> &str {
     entry
         .file_name()
         .as_str()
@@ -157,14 +157,14 @@ where
 
         let mut current_rp = first_rp;
 
-        let mut current_id_hex = get_id_hex(&current_rp);
+        let mut current_id_hex = get_rp_id_hex(&current_rp);
 
         while let Some(entry) = syscall!(self.trussed.read_dir_next()).entry {
-            let id_hex = get_id_hex(&entry);
+            let id_hex = get_rp_id_hex(&entry);
             if id_hex != current_id_hex {
                 total_rps += 1;
                 current_rp = entry;
-                current_id_hex = get_id_hex(&current_rp)
+                current_id_hex = get_rp_id_hex(&current_rp)
             }
         }
 
@@ -192,16 +192,14 @@ where
             .clone()
             .ok_or(Error::NotAllowed)?;
 
-        let mut hex = [b'0'; 16];
-        super::format_hex(&last_rp_id_hash[..8], &mut hex);
-        let filename = PathBuf::try_from(&hex).unwrap();
+        let filename = super::rp_file_name_prefix(&last_rp_id_hash);
 
         let dir = PathBuf::from(RK_DIR);
 
         let maybe_next_rp = syscall!(self.trussed.read_dir_first_alphabetical(
             Location::Internal,
             dir,
-            Some(filename)
+            Some(filename.clone())
         ))
         .entry;
 
@@ -211,12 +209,15 @@ where
             return Err(Error::NotAllowed);
         };
 
-        let current_id_hex = get_id_hex(&current_rp);
+        let current_id_hex = get_rp_id_hex(&current_rp);
 
-        debug_assert!(current_rp.file_name().as_str().as_bytes().starts_with(&hex));
+        debug_assert!(current_rp
+            .file_name()
+            .as_str()
+            .starts_with(filename.as_str()));
 
         while let Some(entry) = syscall!(self.trussed.read_dir_next()).entry {
-            let id_hex = get_id_hex(&entry);
+            let id_hex = get_rp_id_hex(&entry);
             if id_hex == current_id_hex {
                 continue;
             }
@@ -259,10 +260,7 @@ where
 
         self.state.runtime.cached_rk = None;
 
-        let mut hex = [b'0'; 16];
-        super::format_hex(&rp_id_hash[..8], &mut hex);
-
-        let rp_dir_start = PathBuf::try_from(&hex).unwrap();
+        let rp_dir_start = super::rp_file_name_prefix(rp_id_hash);
 
         let mut num_rks = 0;
 
@@ -276,7 +274,11 @@ where
         let mut first_rk = None;
 
         while let Some(entry) = maybe_entry {
-            if !entry.file_name().as_str().as_bytes().starts_with(&hex) {
+            if !entry
+                .file_name()
+                .as_str()
+                .starts_with(rp_dir_start.as_str())
+            {
                 // We got past all credentials for the relevant RP
                 break;
             }
