@@ -1211,21 +1211,21 @@ impl<UP: UserPresence, T: TrussedRequirements> crate::Authenticator<UP, T> {
         use crate::state::CachedCredential;
         use core::str::FromStr;
 
-        let rp_rk_dir = rp_path_prefix(rp_id_hash);
+        let file_name_prefix = rp_file_name_prefix(rp_id_hash);
         let mut maybe_entry = syscall!(self.trussed.read_dir_first_alphabetical(
             Location::Internal,
             PathBuf::from(RK_DIR),
-            Some(rp_rk_dir.clone())
+            Some(file_name_prefix.clone())
         ))
         .entry;
 
         while let Some(entry) = maybe_entry.take() {
-            if !entry.path().as_ref().starts_with(rp_rk_dir.as_ref()) {
+            if !entry.file_name().as_ref().starts_with(file_name_prefix.as_ref()) {
                 // We got past all credentials for the relevant RP
                 break;
             }
 
-            if entry.path() == &*rp_rk_dir {
+            if entry.file_name() == &*file_name_prefix {
                 debug_assert!(entry.metadata().is_dir());
                 error!("Migration missing");
                 return Err(Error::Other);
