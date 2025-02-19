@@ -13,15 +13,8 @@ fn ignore_does_not_exists(error: Error) -> Result<(), Error> {
 pub fn migrate_no_rp_dir(fs: &dyn DynFilesystem, base_path: &Path) -> Result<(), Error> {
     let rk_dir = base_path.join(path!("rk"));
 
-    let mut res = Ok(());
-
-    fs.read_dir_and_then_unit(&rk_dir, &mut |dir| {
-        res = migrate_rk_dir(fs, &rk_dir, dir);
-        Ok(())
-    })
-    .or_else(ignore_does_not_exists)?;
-
-    res
+    fs.read_dir_and_then(&rk_dir, &mut |dir| migrate_rk_dir(fs, &rk_dir, dir))
+        .or_else(ignore_does_not_exists)
 }
 
 fn migrate_rk_dir(
