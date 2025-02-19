@@ -1,7 +1,6 @@
 //! TODO: T
 
-use core::cmp::{self, Ordering};
-use core::{convert::TryFrom, num::NonZeroU32};
+use core::{cmp, convert::TryFrom, num::NonZeroU32};
 
 use littlefs2_core::{Path, PathBuf};
 use trussed_core::{
@@ -61,9 +60,11 @@ where
 
 /// Get the hex hashed ID of the RP from the filename of a RP directory OR a "new" RK path
 fn get_rp_id_hex(entry: &DirEntry) -> &str {
-    entry
-        .file_name()
-        .as_str()
+    get_rp_id_hex_from_file_name(entry.file_name().as_str())
+}
+
+fn get_rp_id_hex_from_file_name(file_name: &str) -> &str {
+    file_name
         .split('.')
         .next()
         .expect("Split always returns at least one empty string")
@@ -330,10 +331,11 @@ where
             prev_filename,
         } = cache;
 
+        let rp_id_hex = get_rp_id_hex_from_file_name(prev_filename.as_str());
         syscall!(self.trussed.read_dir_first_alphabetical(
             Location::Internal,
             PathBuf::from(RK_DIR),
-            Some(prev_filename),
+            Some(prev_filename.clone()),
         ))
         .entry;
 
@@ -342,10 +344,7 @@ where
             return Err(Error::NoCredentials);
         };
 
-        // TODO:
-        // I think this check is not doing what it’s supposed to do -- we would need to check that the
-        // credential actually belongs to the RP.
-        if entry.file_name().cmp_lfs(RK_DIR) == Ordering::Greater {
+        if get_rp_id_hex(&entry) != rp_id_hex {
             // We reached the end of the credentials for the rp
             return Err(Error::NoCredentials);
         }
