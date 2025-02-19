@@ -1206,8 +1206,6 @@ impl<UP: UserPresence, T: TrussedRequirements> crate::Authenticator<UP, T> {
     }
 
     /// Populate the cache with the RP credentials.
-    ///
-    /// Returns true if legacy credentials are present and therefore prepare_cache_legacy should be called too
     #[inline(never)]
     fn prepare_cache(&mut self, rp_id_hash: &[u8; 32], uv_performed: bool) -> Result<()> {
         use crate::state::CachedCredential;
