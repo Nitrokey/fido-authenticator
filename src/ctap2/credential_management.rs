@@ -297,7 +297,6 @@ where
             maybe_entry = syscall!(self.trussed.read_dir_next()).entry;
         }
 
-        // TODO: FIX
         let first_rk = first_rk.ok_or(Error::NoCredentials)?;
 
         // extract data required into response
