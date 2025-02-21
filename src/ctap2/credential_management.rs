@@ -8,8 +8,8 @@ use trussed_core::{
     types::{DirEntry, Location},
 };
 
-#[cfg(feature = "backend-dilithium")]
-use trussed::types::StorageAttributes;
+#[cfg(feature = "backend-mldsa")]
+use trussed_core::types::StorageAttributes;
 
 use cosey::PublicKey;
 use ctap_types::{
@@ -451,65 +451,59 @@ where
                     ctap_types::serde::cbor_deserialize(&cose_public_key).unwrap(),
                 )
             }
-            #[cfg(feature = "backend-dilithium2")]
-            SigningAlgorithm::Dilithium2 => {
+            #[cfg(feature = "backend-mldsa-44")]
+            SigningAlgorithm::Mldsa44 => {
                 let public_key = syscall!(self.trussed.derive_key(
-                    Mechanism::Dilithium2,
+                    Mechanism::Mldsa44,
                     private_key,
                     None,
                     StorageAttributes::new().set_persistence(Location::Volatile),
                 ))
                 .key;
                 let cose_public_key = syscall!(self.trussed.serialize_key(
-                    Mechanism::Dilithium2,
+                    Mechanism::Mldsa44,
                     public_key,
                     KeySerialization::Cose
                 ))
                 .serialized_key;
                 syscall!(self.trussed.delete(public_key));
-                PublicKey::Dilithium2(
-                    ctap_types::serde::cbor_deserialize(&cose_public_key).unwrap(),
-                )
+                PublicKey::Mldsa44(ctap_types::serde::cbor_deserialize(&cose_public_key).unwrap())
             }
-            #[cfg(feature = "backend-dilithium3")]
-            SigningAlgorithm::Dilithium3 => {
+            #[cfg(feature = "backend-mldsa-65")]
+            SigningAlgorithm::Mldsa65 => {
                 let public_key = syscall!(self.trussed.derive_key(
-                    Mechanism::Dilithium3,
+                    Mechanism::Mldsa65,
                     private_key,
                     None,
                     StorageAttributes::new().set_persistence(Location::Volatile),
                 ))
                 .key;
                 let cose_public_key = syscall!(self.trussed.serialize_key(
-                    Mechanism::Dilithium3,
+                    Mechanism::Mldsa65,
                     public_key,
                     KeySerialization::Cose
                 ))
                 .serialized_key;
                 syscall!(self.trussed.delete(public_key));
-                PublicKey::Dilithium3(
-                    ctap_types::serde::cbor_deserialize(&cose_public_key).unwrap(),
-                )
+                PublicKey::Mldsa65(ctap_types::serde::cbor_deserialize(&cose_public_key).unwrap())
             }
-            #[cfg(feature = "backend-dilithium5")]
-            SigningAlgorithm::Dilithium5 => {
+            #[cfg(feature = "backend-mldsa-87")]
+            SigningAlgorithm::Mldsa87 => {
                 let public_key = syscall!(self.trussed.derive_key(
-                    Mechanism::Dilithium5,
+                    Mechanism::Mldsa87,
                     private_key,
                     None,
                     StorageAttributes::new().set_persistence(Location::Volatile),
                 ))
                 .key;
                 let cose_public_key = syscall!(self.trussed.serialize_key(
-                    Mechanism::Dilithium5,
+                    Mechanism::Mldsa87,
                     public_key,
                     KeySerialization::Cose
                 ))
                 .serialized_key;
                 syscall!(self.trussed.delete(public_key));
-                PublicKey::Dilithium5(
-                    ctap_types::serde::cbor_deserialize(&cose_public_key).unwrap(),
-                )
+                PublicKey::Mldsa87(ctap_types::serde::cbor_deserialize(&cose_public_key).unwrap())
             } // SigningAlgorithm::Totp => {
               //     PublicKey::TotpKey(Default::default())
               // }

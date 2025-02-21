@@ -44,10 +44,10 @@ disable-reset-time-window = []
 # enables support for a large-blob array longer than 1024 bytes
 chunked = ["trussed-chunked"]
 
-backend-dilithium = []
-backend-dilithium2 = ["backend-dilithium", "ctap-types/backend-dilithium2", "trussed/backend-dilithium2"]
-backend-dilithium3 = ["backend-dilithium", "ctap-types/backend-dilithium3", "trussed/backend-dilithium3"]
-backend-dilithium5 = ["backend-dilithium", "ctap-types/backend-dilithium5", "trussed/backend-dilithium5"]
+backend-mldsa = []
+backend-mldsa-44 = ["backend-mldsa", "ctap-types/backend-mldsa-44", "trussed/backend-mldsa-44", "trussed-core/backend-mldsa-44"]
+backend-mldsa-65 = ["backend-mldsa", "ctap-types/backend-mldsa-65", "trussed/backend-mldsa-65", "trussed-core/backend-mldsa-65"]
+backend-mldsa-87 = ["backend-mldsa", "ctap-types/backend-mldsa-87", "trussed/backend-mldsa-87", "trussed-core/backend-mldsa-87"]
 
 log-all = []
 log-none = []

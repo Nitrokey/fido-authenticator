@@ -25,9 +25,6 @@ use trussed_core::{
     },
 };
 
-#[cfg(feature = "backend-dilithium")]
-use trussed::types::StorageAttributes;
-
 use crate::{
     constants::{self, MAX_RESIDENT_CREDENTIALS_GUESSTIMATE},
     credential::{self, Credential, FullCredential, Key, StrippedCredential},
@@ -304,77 +301,77 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
                 let _success = syscall!(self.trussed.delete(public_key)).success;
                 info_now!("deleted public Ed25519 key: {}", _success);
             }
-            #[cfg(feature = "backend-dilithium2")]
-            SigningAlgorithm::Dilithium2 => {
+            #[cfg(feature = "backend-mldsa-44")]
+            SigningAlgorithm::Mldsa44 => {
                 private_key = syscall!(self.trussed.generate_key(
-                    Mechanism::Dilithium2,
+                    Mechanism::Mldsa44,
                     StorageAttributes::new().set_persistence(location)
                 ))
                 .key;
                 public_key = syscall!(self.trussed.derive_key(
-                    Mechanism::Dilithium2,
+                    Mechanism::Mldsa44,
                     private_key,
                     None,
                     StorageAttributes::new().set_persistence(Location::Volatile),
                 ))
                 .key;
                 cose_public_key = syscall!(self.trussed.serialize_key(
-                    Mechanism::Dilithium2,
+                    Mechanism::Mldsa44,
                     public_key,
                     KeySerialization::Cose
                 ))
                 .serialized_key;
 
                 let _success = syscall!(self.trussed.delete(public_key)).success;
-                info_now!("deleted public Dilithium2 key: {}", _success);
+                info_now!("deleted public ML-DSA44 key: {}", _success);
             }
-            #[cfg(feature = "backend-dilithium3")]
-            SigningAlgorithm::Dilithium3 => {
+            #[cfg(feature = "backend-mldsa-65")]
+            SigningAlgorithm::Mldsa65 => {
                 private_key = syscall!(self.trussed.generate_key(
-                    Mechanism::Dilithium3,
+                    Mechanism::Mldsa65,
                     StorageAttributes::new().set_persistence(location)
                 ))
                 .key;
                 public_key = syscall!(self.trussed.derive_key(
-                    Mechanism::Dilithium3,
+                    Mechanism::Mldsa65,
                     private_key,
                     None,
                     StorageAttributes::new().set_persistence(Location::Volatile),
                 ))
                 .key;
                 cose_public_key = syscall!(self.trussed.serialize_key(
-                    Mechanism::Dilithium3,
+                    Mechanism::Mldsa65,
                     public_key,
                     KeySerialization::Cose
                 ))
                 .serialized_key;
 
                 let _success = syscall!(self.trussed.delete(public_key)).success;
-                info_now!("deleted public Dilithium3 key: {}", _success);
+                info_now!("deleted public ML-DSA65 key: {}", _success);
             }
-            #[cfg(feature = "backend-dilithium5")]
-            SigningAlgorithm::Dilithium5 => {
+            #[cfg(feature = "backend-mldsa-87")]
+            SigningAlgorithm::Mldsa87 => {
                 private_key = syscall!(self.trussed.generate_key(
-                    Mechanism::Dilithium5,
+                    Mechanism::Mldsa87,
                     StorageAttributes::new().set_persistence(location)
                 ))
                 .key;
                 public_key = syscall!(self.trussed.derive_key(
-                    Mechanism::Dilithium5,
+                    Mechanism::Mldsa87,
                     private_key,
                     None,
                     StorageAttributes::new().set_persistence(Location::Volatile),
                 ))
                 .key;
                 cose_public_key = syscall!(self.trussed.serialize_key(
-                    Mechanism::Dilithium5,
+                    Mechanism::Mldsa87,
                     public_key,
                     KeySerialization::Cose
                 ))
                 .serialized_key;
 
                 let _success = syscall!(self.trussed.delete(public_key)).success;
-                info_now!("deleted public Dilithium5 key: {}", _success);
+                info_now!("deleted public ML-DSA87 key: {}", _success);
             } // SigningAlgorithm::Totp => {
               //     if parameters.client_data_hash.len() != 32 {
               //         return Err(Error::InvalidParameter);
@@ -598,10 +595,10 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
                                     (der_signature.to_bytes().map_err(|_| Error::Other)?, -7)
                                 }
 
-                                #[cfg(feature = "backend-dilithium2")]
-                                SigningAlgorithm::Dilithium2 => {
+                                #[cfg(feature = "backend-mldsa-44")]
+                                SigningAlgorithm::Mldsa44 => {
                                     let signature = syscall!(self.trussed.sign(
-                                        Mechanism::Dilithium2,
+                                        Mechanism::Mldsa44,
                                         private_key,
                                         &commitment,
                                         SignatureSerialization::Raw
@@ -609,13 +606,13 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
                                     .signature;
                                     (
                                         signature.to_bytes().map_err(|_| Error::Other)?,
-                                        SigningAlgorithm::Dilithium2 as i32,
+                                        SigningAlgorithm::Mldsa44 as i32,
                                     )
                                 }
-                                #[cfg(feature = "backend-dilithium3")]
-                                SigningAlgorithm::Dilithium3 => {
+                                #[cfg(feature = "backend-mldsa-65")]
+                                SigningAlgorithm::Mldsa65 => {
                                     let signature = syscall!(self.trussed.sign(
-                                        Mechanism::Dilithium3,
+                                        Mechanism::Mldsa65,
                                         private_key,
                                         &commitment,
                                         SignatureSerialization::Raw
@@ -623,13 +620,13 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
                                     .signature;
                                     (
                                         signature.to_bytes().map_err(|_| Error::Other)?,
-                                        SigningAlgorithm::Dilithium3 as i32,
+                                        SigningAlgorithm::Mldsa65 as i32,
                                     )
                                 }
-                                #[cfg(feature = "backend-dilithium5")]
-                                SigningAlgorithm::Dilithium5 => {
+                                #[cfg(feature = "backend-mldsa-87")]
+                                SigningAlgorithm::Mldsa87 => {
                                     let signature = syscall!(self.trussed.sign(
-                                        Mechanism::Dilithium5,
+                                        Mechanism::Mldsa87,
                                         private_key,
                                         &commitment,
                                         SignatureSerialization::Raw
@@ -637,7 +634,7 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
                                     .signature;
                                     (
                                         signature.to_bytes().map_err(|_| Error::Other)?,
-                                        SigningAlgorithm::Dilithium5 as i32,
+                                        SigningAlgorithm::Mldsa87 as i32,
                                     )
                                 }
                             }
@@ -1602,12 +1599,12 @@ impl<UP: UserPresence, T: TrussedRequirements> crate::Authenticator<UP, T> {
                     //     info_now!("found it");
                     //     exists
                     // }
-                    #[cfg(feature = "backend-dilithium2")]
-                    -87 => syscall!(self.trussed.exists(Mechanism::Dilithium2, *key)).exists,
-                    #[cfg(feature = "backend-dilithium3")]
-                    -88 => syscall!(self.trussed.exists(Mechanism::Dilithium3, *key)).exists,
-                    #[cfg(feature = "backend-dilithium5")]
-                    -89 => syscall!(self.trussed.exists(Mechanism::Dilithium5, *key)).exists,
+                    #[cfg(feature = "backend-mldsa-44")]
+                    -87 => syscall!(self.trussed.exists(Mechanism::Mldsa44, *key)).exists,
+                    #[cfg(feature = "backend-mldsa-65")]
+                    -88 => syscall!(self.trussed.exists(Mechanism::Mldsa65, *key)).exists,
+                    #[cfg(feature = "backend-mldsa-87")]
+                    -89 => syscall!(self.trussed.exists(Mechanism::Mldsa87, *key)).exists,
                     _ => false,
                 }
             }
@@ -1790,12 +1787,12 @@ impl<UP: UserPresence, T: TrussedRequirements> crate::Authenticator<UP, T> {
             -7 => (Mechanism::P256, SignatureSerialization::Asn1Der),
             -8 => (Mechanism::Ed255, SignatureSerialization::Raw),
             // -9 => (Mechanism::Totp, SignatureSerialization::Raw),
-            #[cfg(feature = "backend-dilithium2")]
-            -87 => (Mechanism::Dilithium2, SignatureSerialization::Raw),
-            #[cfg(feature = "backend-dilithium3")]
-            -88 => (Mechanism::Dilithium3, SignatureSerialization::Raw),
-            #[cfg(feature = "backend-dilithium5")]
-            -89 => (Mechanism::Dilithium5, SignatureSerialization::Raw),
+            #[cfg(feature = "backend-mldsa-44")]
+            -87 => (Mechanism::Mldsa44, SignatureSerialization::Raw),
+            #[cfg(feature = "backend-mldsa-65")]
+            -88 => (Mechanism::Mldsa65, SignatureSerialization::Raw),
+            #[cfg(feature = "backend-mldsa-87")]
+            -89 => (Mechanism::Mldsa87, SignatureSerialization::Raw),
             _ => {
                 return Err(Error::Other);
             }

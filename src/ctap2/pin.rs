@@ -1,12 +1,8 @@
 use cosey::EcdhEsHkdf256PublicKey;
 use ctap_types::{ctap2::client_pin::Permissions, Error, Result};
-use trussed::{
-    cbor_deserialize, cbor_serialize_bytes,
-    client::{CryptoClient, HmacSha256, P256},
-    config::MAX_MESSAGE_LENGTH,
-};
 use heapless::String;
 use trussed_core::{
+    config::MAX_MESSAGE_LENGTH,
     mechanisms::{HmacSha256, P256},
     syscall, try_syscall,
     types::{
