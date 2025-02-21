@@ -488,7 +488,7 @@ pub struct CredentialData {
     pub creation_time: u32,
     // for stateless deterministic keys, it seems CTAP2 (but not CTAP1) makes signature counters optional
     use_counter: bool,
-    // P256, Ed25519, or Dilithium 2/3/5
+    // P256, Ed25519, or ML-DSA 44/65/87
     pub algorithm: i32,
     // for RK in non-deterministic mode: refers to actual key
     // TODO(implement enums in cbor-deser): for all others, is a wrapped key
