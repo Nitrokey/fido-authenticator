@@ -2,14 +2,13 @@ use cosey::EcdhEsHkdf256PublicKey;
 use ctap_types::{ctap2::client_pin::Permissions, Error, Result};
 use heapless::String;
 use trussed_core::{
-    cbor_deserialize, cbor_serialize_bytes,
-    client::{CryptoClient, HmacSha256, P256},
     config::MAX_MESSAGE_LENGTH,
     mechanisms::{HmacSha256, P256},
     syscall, try_syscall,
     types::{
         Bytes, KeyId, KeySerialization, Location, Mechanism, Message, ShortData, StorageAttributes,
     },
+    CryptoClient,
 };
 use trussed_hkdf::{HkdfClient, KeyOrData, OkmId};
 

@@ -204,11 +204,11 @@ pub enum SigningAlgorithm {
     P256 = -7,
     // #[doc(hidden)]
     // Totp = -9,
-    #[cfg(feature = "backend-mldsa-44")]
+    #[cfg(feature = "mldsa44")]
     Mldsa44 = -87,
-    #[cfg(feature = "backend-mldsa-65")]
+    #[cfg(feature = "mldsa65")]
     Mldsa65 = -88,
-    #[cfg(feature = "backend-mldsa-87")]
+    #[cfg(feature = "mldsa87")]
     Mldsa87 = -89,
 }
 
@@ -219,11 +219,11 @@ impl core::convert::TryFrom<i32> for SigningAlgorithm {
             -7 => SigningAlgorithm::P256,
             -8 => SigningAlgorithm::Ed25519,
             // -9 => SigningAlgorithm::Totp,
-            #[cfg(feature = "backend-mldsa-44")]
+            #[cfg(feature = "mldsa44")]
             -87 => SigningAlgorithm::Mldsa44,
-            #[cfg(feature = "backend-mldsa-65")]
+            #[cfg(feature = "mldsa65")]
             -88 => SigningAlgorithm::Mldsa65,
-            #[cfg(feature = "backend-mldsa-87")]
+            #[cfg(feature = "mldsa87")]
             -89 => SigningAlgorithm::Mldsa87,
             _ => return Err(Error::UnsupportedAlgorithm),
         })

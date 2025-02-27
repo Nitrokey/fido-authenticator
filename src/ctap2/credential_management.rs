@@ -5,10 +5,10 @@ use core::{cmp, convert::TryFrom, num::NonZeroU32};
 use littlefs2_core::{Path, PathBuf};
 use trussed_core::{
     syscall, try_syscall,
-    types::{DirEntry, Location, Path, PathBuf},
+    types::{DirEntry, Location},
 };
 
-#[cfg(feature = "backend-mldsa")]
+#[cfg(feature = "mldsa")]
 use trussed_core::types::StorageAttributes;
 
 use cosey::PublicKey;
@@ -433,7 +433,7 @@ where
                     ctap_types::serde::cbor_deserialize(&cose_public_key).unwrap(),
                 )
             }
-            #[cfg(feature = "backend-mldsa-44")]
+            #[cfg(feature = "mldsa44")]
             SigningAlgorithm::Mldsa44 => {
                 let public_key = syscall!(self.trussed.derive_key(
                     Mechanism::Mldsa44,
@@ -451,7 +451,7 @@ where
                 syscall!(self.trussed.delete(public_key));
                 PublicKey::Mldsa44(ctap_types::serde::cbor_deserialize(&cose_public_key).unwrap())
             }
-            #[cfg(feature = "backend-mldsa-65")]
+            #[cfg(feature = "mldsa65")]
             SigningAlgorithm::Mldsa65 => {
                 let public_key = syscall!(self.trussed.derive_key(
                     Mechanism::Mldsa65,
@@ -469,7 +469,7 @@ where
                 syscall!(self.trussed.delete(public_key));
                 PublicKey::Mldsa65(ctap_types::serde::cbor_deserialize(&cose_public_key).unwrap())
             }
-            #[cfg(feature = "backend-mldsa-87")]
+            #[cfg(feature = "mldsa87")]
             SigningAlgorithm::Mldsa87 => {
                 let public_key = syscall!(self.trussed.derive_key(
                     Mechanism::Mldsa87,

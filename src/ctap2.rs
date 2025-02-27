@@ -20,8 +20,8 @@ use sha2::{Digest as _, Sha256};
 use trussed_core::{
     syscall, try_syscall,
     types::{
-        KeyId, KeySerialization, Location, Mechanism, MediumData, Message, Path, PathBuf,
-        SignatureSerialization,
+        KeyId, KeySerialization, Location, Mechanism, MediumData, Message, SignatureSerialization,
+        StorageAttributes,
     },
 };
 
@@ -301,7 +301,7 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
                 let _success = syscall!(self.trussed.delete(public_key)).success;
                 info_now!("deleted public Ed25519 key: {}", _success);
             }
-            #[cfg(feature = "backend-mldsa-44")]
+            #[cfg(feature = "mldsa44")]
             SigningAlgorithm::Mldsa44 => {
                 private_key = syscall!(self.trussed.generate_key(
                     Mechanism::Mldsa44,
@@ -325,7 +325,7 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
                 let _success = syscall!(self.trussed.delete(public_key)).success;
                 info_now!("deleted public ML-DSA44 key: {}", _success);
             }
-            #[cfg(feature = "backend-mldsa-65")]
+            #[cfg(feature = "mldsa65")]
             SigningAlgorithm::Mldsa65 => {
                 private_key = syscall!(self.trussed.generate_key(
                     Mechanism::Mldsa65,
@@ -349,7 +349,7 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
                 let _success = syscall!(self.trussed.delete(public_key)).success;
                 info_now!("deleted public ML-DSA65 key: {}", _success);
             }
-            #[cfg(feature = "backend-mldsa-87")]
+            #[cfg(feature = "mldsa87")]
             SigningAlgorithm::Mldsa87 => {
                 private_key = syscall!(self.trussed.generate_key(
                     Mechanism::Mldsa87,
@@ -590,7 +590,7 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
                                     (der_signature.to_bytes().map_err(|_| Error::Other)?, -7)
                                 }
 
-                                #[cfg(feature = "backend-mldsa-44")]
+                                #[cfg(feature = "mldsa44")]
                                 SigningAlgorithm::Mldsa44 => {
                                     let signature = syscall!(self.trussed.sign(
                                         Mechanism::Mldsa44,
@@ -604,7 +604,7 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
                                         SigningAlgorithm::Mldsa44 as i32,
                                     )
                                 }
-                                #[cfg(feature = "backend-mldsa-65")]
+                                #[cfg(feature = "mldsa65")]
                                 SigningAlgorithm::Mldsa65 => {
                                     let signature = syscall!(self.trussed.sign(
                                         Mechanism::Mldsa65,
@@ -618,7 +618,7 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
                                         SigningAlgorithm::Mldsa65 as i32,
                                     )
                                 }
-                                #[cfg(feature = "backend-mldsa-87")]
+                                #[cfg(feature = "mldsa87")]
                                 SigningAlgorithm::Mldsa87 => {
                                     let signature = syscall!(self.trussed.sign(
                                         Mechanism::Mldsa87,
@@ -1620,11 +1620,11 @@ impl<UP: UserPresence, T: TrussedRequirements> crate::Authenticator<UP, T> {
                     //     info_now!("found it");
                     //     exists
                     // }
-                    #[cfg(feature = "backend-mldsa-44")]
+                    #[cfg(feature = "mldsa44")]
                     -87 => syscall!(self.trussed.exists(Mechanism::Mldsa44, *key)).exists,
-                    #[cfg(feature = "backend-mldsa-65")]
+                    #[cfg(feature = "mldsa65")]
                     -88 => syscall!(self.trussed.exists(Mechanism::Mldsa65, *key)).exists,
-                    #[cfg(feature = "backend-mldsa-87")]
+                    #[cfg(feature = "mldsa87")]
                     -89 => syscall!(self.trussed.exists(Mechanism::Mldsa87, *key)).exists,
                     _ => false,
                 }
@@ -1808,11 +1808,11 @@ impl<UP: UserPresence, T: TrussedRequirements> crate::Authenticator<UP, T> {
             -7 => (Mechanism::P256, SignatureSerialization::Asn1Der),
             -8 => (Mechanism::Ed255, SignatureSerialization::Raw),
             // -9 => (Mechanism::Totp, SignatureSerialization::Raw),
-            #[cfg(feature = "backend-mldsa-44")]
+            #[cfg(feature = "mldsa44")]
             -87 => (Mechanism::Mldsa44, SignatureSerialization::Raw),
-            #[cfg(feature = "backend-mldsa-65")]
+            #[cfg(feature = "mldsa65")]
             -88 => (Mechanism::Mldsa65, SignatureSerialization::Raw),
-            #[cfg(feature = "backend-mldsa-87")]
+            #[cfg(feature = "mldsa87")]
             -89 => (Mechanism::Mldsa87, SignatureSerialization::Raw),
             _ => {
                 return Err(Error::Other);
