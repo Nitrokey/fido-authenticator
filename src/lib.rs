@@ -193,7 +193,7 @@ pub(crate) fn msp() -> u32 {
     0x2000_0000
 }
 
-/// Currently Ed25519 and P256.
+/// Currently Ed25519, P256, and ML-DSA 44/65/87
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 #[repr(i32)]
 #[non_exhaustive]
@@ -204,6 +204,12 @@ pub enum SigningAlgorithm {
     P256 = -7,
     // #[doc(hidden)]
     // Totp = -9,
+    #[cfg(feature = "mldsa44")]
+    Mldsa44 = -87,
+    #[cfg(feature = "mldsa65")]
+    Mldsa65 = -88,
+    #[cfg(feature = "mldsa87")]
+    Mldsa87 = -89,
 }
 
 impl core::convert::TryFrom<i32> for SigningAlgorithm {
@@ -213,6 +219,12 @@ impl core::convert::TryFrom<i32> for SigningAlgorithm {
             -7 => SigningAlgorithm::P256,
             -8 => SigningAlgorithm::Ed25519,
             // -9 => SigningAlgorithm::Totp,
+            #[cfg(feature = "mldsa44")]
+            -87 => SigningAlgorithm::Mldsa44,
+            #[cfg(feature = "mldsa65")]
+            -88 => SigningAlgorithm::Mldsa65,
+            #[cfg(feature = "mldsa87")]
+            -89 => SigningAlgorithm::Mldsa87,
             _ => return Err(Error::UnsupportedAlgorithm),
         })
     }

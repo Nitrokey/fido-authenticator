@@ -8,6 +8,9 @@ use trussed_core::{
     types::{DirEntry, Location},
 };
 
+#[cfg(feature = "mldsa")]
+use trussed_core::types::StorageAttributes;
+
 use cosey::PublicKey;
 use ctap_types::{
     ctap2::credential_management::{CredentialProtectionPolicy, Response},
@@ -429,6 +432,60 @@ where
                 PublicKey::Ed25519Key(
                     ctap_types::serde::cbor_deserialize(&cose_public_key).unwrap(),
                 )
+            }
+            #[cfg(feature = "mldsa44")]
+            SigningAlgorithm::Mldsa44 => {
+                let public_key = syscall!(self.trussed.derive_key(
+                    Mechanism::Mldsa44,
+                    private_key,
+                    None,
+                    StorageAttributes::new().set_persistence(Location::Volatile),
+                ))
+                .key;
+                let cose_public_key = syscall!(self.trussed.serialize_key(
+                    Mechanism::Mldsa44,
+                    public_key,
+                    KeySerialization::Cose
+                ))
+                .serialized_key;
+                syscall!(self.trussed.delete(public_key));
+                PublicKey::Mldsa44(ctap_types::serde::cbor_deserialize(&cose_public_key).unwrap())
+            }
+            #[cfg(feature = "mldsa65")]
+            SigningAlgorithm::Mldsa65 => {
+                let public_key = syscall!(self.trussed.derive_key(
+                    Mechanism::Mldsa65,
+                    private_key,
+                    None,
+                    StorageAttributes::new().set_persistence(Location::Volatile),
+                ))
+                .key;
+                let cose_public_key = syscall!(self.trussed.serialize_key(
+                    Mechanism::Mldsa65,
+                    public_key,
+                    KeySerialization::Cose
+                ))
+                .serialized_key;
+                syscall!(self.trussed.delete(public_key));
+                PublicKey::Mldsa65(ctap_types::serde::cbor_deserialize(&cose_public_key).unwrap())
+            }
+            #[cfg(feature = "mldsa87")]
+            SigningAlgorithm::Mldsa87 => {
+                let public_key = syscall!(self.trussed.derive_key(
+                    Mechanism::Mldsa87,
+                    private_key,
+                    None,
+                    StorageAttributes::new().set_persistence(Location::Volatile),
+                ))
+                .key;
+                let cose_public_key = syscall!(self.trussed.serialize_key(
+                    Mechanism::Mldsa87,
+                    public_key,
+                    KeySerialization::Cose
+                ))
+                .serialized_key;
+                syscall!(self.trussed.delete(public_key));
+                PublicKey::Mldsa87(ctap_types::serde::cbor_deserialize(&cose_public_key).unwrap())
             } // SigningAlgorithm::Totp => {
               //     PublicKey::TotpKey(Default::default())
               // }

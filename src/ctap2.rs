@@ -10,6 +10,7 @@ use ctap_types::{
     heapless::{String, Vec},
     heapless_bytes::Bytes,
     sizes,
+    sizes::MAX_COMMITTMENT_LENGTH,
     webauthn::PublicKeyCredentialUserEntity,
     ByteArray, Error,
 };
@@ -197,17 +198,9 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
 
         let mut algorithm: Option<SigningAlgorithm> = None;
         for param in parameters.pub_key_cred_params.0.iter() {
-            match param.alg {
-                -7 => {
-                    if algorithm.is_none() {
-                        algorithm = Some(SigningAlgorithm::P256);
-                    }
-                }
-                -8 => {
-                    algorithm = Some(SigningAlgorithm::Ed25519);
-                }
-                // -9 => { algorithm = Some(SigningAlgorithm::Totp); }
-                _ => {}
+            if let Ok(alg) = SigningAlgorithm::try_from(param.alg) {
+                algorithm = Some(alg);
+                break;
             }
         }
         let algorithm = algorithm.ok_or(Error::UnsupportedAlgorithm)?;
@@ -307,6 +300,78 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
                 .serialized_key;
                 let _success = syscall!(self.trussed.delete(public_key)).success;
                 info_now!("deleted public Ed25519 key: {}", _success);
+            }
+            #[cfg(feature = "mldsa44")]
+            SigningAlgorithm::Mldsa44 => {
+                private_key = syscall!(self.trussed.generate_key(
+                    Mechanism::Mldsa44,
+                    StorageAttributes::new().set_persistence(location)
+                ))
+                .key;
+                public_key = syscall!(self.trussed.derive_key(
+                    Mechanism::Mldsa44,
+                    private_key,
+                    None,
+                    StorageAttributes::new().set_persistence(Location::Volatile),
+                ))
+                .key;
+                cose_public_key = syscall!(self.trussed.serialize_key(
+                    Mechanism::Mldsa44,
+                    public_key,
+                    KeySerialization::Cose
+                ))
+                .serialized_key;
+
+                let _success = syscall!(self.trussed.delete(public_key)).success;
+                info_now!("deleted public ML-DSA44 key: {}", _success);
+            }
+            #[cfg(feature = "mldsa65")]
+            SigningAlgorithm::Mldsa65 => {
+                private_key = syscall!(self.trussed.generate_key(
+                    Mechanism::Mldsa65,
+                    StorageAttributes::new().set_persistence(location)
+                ))
+                .key;
+                public_key = syscall!(self.trussed.derive_key(
+                    Mechanism::Mldsa65,
+                    private_key,
+                    None,
+                    StorageAttributes::new().set_persistence(Location::Volatile),
+                ))
+                .key;
+                cose_public_key = syscall!(self.trussed.serialize_key(
+                    Mechanism::Mldsa65,
+                    public_key,
+                    KeySerialization::Cose
+                ))
+                .serialized_key;
+
+                let _success = syscall!(self.trussed.delete(public_key)).success;
+                info_now!("deleted public ML-DSA65 key: {}", _success);
+            }
+            #[cfg(feature = "mldsa87")]
+            SigningAlgorithm::Mldsa87 => {
+                private_key = syscall!(self.trussed.generate_key(
+                    Mechanism::Mldsa87,
+                    StorageAttributes::new().set_persistence(location)
+                ))
+                .key;
+                public_key = syscall!(self.trussed.derive_key(
+                    Mechanism::Mldsa87,
+                    private_key,
+                    None,
+                    StorageAttributes::new().set_persistence(Location::Volatile),
+                ))
+                .key;
+                cose_public_key = syscall!(self.trussed.serialize_key(
+                    Mechanism::Mldsa87,
+                    public_key,
+                    KeySerialization::Cose
+                ))
+                .serialized_key;
+
+                let _success = syscall!(self.trussed.delete(public_key)).success;
+                info_now!("deleted public ML-DSA87 key: {}", _success);
             } // SigningAlgorithm::Totp => {
               //     if parameters.client_data_hash.len() != 32 {
               //         return Err(Error::InvalidParameter);
@@ -447,7 +512,11 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
             sign_count: self.state.persistent.timestamp(&mut self.trussed)?,
 
             attested_credential_data: {
-                // debug_now!("acd in, cid len {}, pk len {}", credential_id.0.len(), cose_public_key.len());
+                debug_now!(
+                    "acd in, cid len {}, pk len {}",
+                    credential_id.0.len(),
+                    cose_public_key.len()
+                );
                 let attested_credential_data = ctap2::make_credential::AttestedCredentialData {
                     aaguid: &aaguid,
                     credential_id: &credential_id.0,
@@ -484,7 +553,7 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
                     Some(AttestationStatement::None(NoneAttestationStatement {}))
                 }
                 SupportedAttestationFormat::Packed => {
-                    let mut commitment = Bytes::<1024>::new();
+                    let mut commitment = Bytes::<MAX_COMMITTMENT_LENGTH>::new();
                     commitment
                         .extend_from_slice(&serialized_auth_data)
                         .map_err(|_| Error::Other)?;
@@ -519,6 +588,49 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
                                     ))
                                     .signature;
                                     (der_signature.to_bytes().map_err(|_| Error::Other)?, -7)
+                                }
+
+                                #[cfg(feature = "mldsa44")]
+                                SigningAlgorithm::Mldsa44 => {
+                                    let signature = syscall!(self.trussed.sign(
+                                        Mechanism::Mldsa44,
+                                        private_key,
+                                        &commitment,
+                                        SignatureSerialization::Raw
+                                    ))
+                                    .signature;
+                                    (
+                                        signature.to_bytes().map_err(|_| Error::Other)?,
+                                        SigningAlgorithm::Mldsa44 as i32,
+                                    )
+                                }
+                                #[cfg(feature = "mldsa65")]
+                                SigningAlgorithm::Mldsa65 => {
+                                    let signature = syscall!(self.trussed.sign(
+                                        Mechanism::Mldsa65,
+                                        private_key,
+                                        &commitment,
+                                        SignatureSerialization::Raw
+                                    ))
+                                    .signature;
+                                    (
+                                        signature.to_bytes().map_err(|_| Error::Other)?,
+                                        SigningAlgorithm::Mldsa65 as i32,
+                                    )
+                                }
+                                #[cfg(feature = "mldsa87")]
+                                SigningAlgorithm::Mldsa87 => {
+                                    let signature = syscall!(self.trussed.sign(
+                                        Mechanism::Mldsa87,
+                                        private_key,
+                                        &commitment,
+                                        SignatureSerialization::Raw
+                                    ))
+                                    .signature;
+                                    (
+                                        signature.to_bytes().map_err(|_| Error::Other)?,
+                                        SigningAlgorithm::Mldsa87 as i32,
+                                    )
                                 }
                             }
                         }
@@ -1508,6 +1620,12 @@ impl<UP: UserPresence, T: TrussedRequirements> crate::Authenticator<UP, T> {
                     //     info_now!("found it");
                     //     exists
                     // }
+                    #[cfg(feature = "mldsa44")]
+                    -87 => syscall!(self.trussed.exists(Mechanism::Mldsa44, *key)).exists,
+                    #[cfg(feature = "mldsa65")]
+                    -88 => syscall!(self.trussed.exists(Mechanism::Mldsa65, *key)).exists,
+                    #[cfg(feature = "mldsa87")]
+                    -89 => syscall!(self.trussed.exists(Mechanism::Mldsa87, *key)).exists,
                     _ => false,
                 }
             }
@@ -1690,6 +1808,12 @@ impl<UP: UserPresence, T: TrussedRequirements> crate::Authenticator<UP, T> {
             -7 => (Mechanism::P256, SignatureSerialization::Asn1Der),
             -8 => (Mechanism::Ed255, SignatureSerialization::Raw),
             // -9 => (Mechanism::Totp, SignatureSerialization::Raw),
+            #[cfg(feature = "mldsa44")]
+            -87 => (Mechanism::Mldsa44, SignatureSerialization::Raw),
+            #[cfg(feature = "mldsa65")]
+            -88 => (Mechanism::Mldsa65, SignatureSerialization::Raw),
+            #[cfg(feature = "mldsa87")]
+            -89 => (Mechanism::Mldsa87, SignatureSerialization::Raw),
             _ => {
                 return Err(Error::Other);
             }

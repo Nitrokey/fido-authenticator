@@ -5,6 +5,7 @@ use core::cmp::Ordering;
 use serde::Serialize;
 use serde_bytes::ByteArray;
 use trussed_core::{
+    config::MAX_FIDO_WRAPPED_KEY_LENGTH,
     mechanisms::{Chacha8Poly1305, Sha256},
     syscall, try_syscall,
     types::{EncryptedData, KeyId},
@@ -90,7 +91,7 @@ pub(crate) type SerializedCredential = trussed_core::types::Message;
 pub enum Key {
     ResidentKey(KeyId),
     // THIS USED TO BE 92 NOW IT'S 96 or 97 or so... waddup?
-    WrappedKey(Bytes<128>),
+    WrappedKey(Bytes<MAX_FIDO_WRAPPED_KEY_LENGTH>),
 }
 
 /// A credential that is managed by the authenticator.
@@ -487,7 +488,7 @@ pub struct CredentialData {
     pub creation_time: u32,
     // for stateless deterministic keys, it seems CTAP2 (but not CTAP1) makes signature counters optional
     use_counter: bool,
-    // P256 or Ed25519
+    // P256, Ed25519, or ML-DSA 44/65/87
     pub algorithm: i32,
     // for RK in non-deterministic mode: refers to actual key
     // TODO(implement enums in cbor-deser): for all others, is a wrapped key

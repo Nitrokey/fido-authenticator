@@ -44,6 +44,11 @@ disable-reset-time-window = []
 # enables support for a large-blob array longer than 1024 bytes
 chunked = ["trussed-chunked"]
 
+mldsa = []
+mldsa44 = ["mldsa", "ctap-types/mldsa44", "trussed/mldsa44", "trussed-core/mldsa44"]
+mldsa65 = ["mldsa", "ctap-types/mldsa65", "trussed/mldsa65", "trussed-core/mldsa65"]
+mldsa87 = ["mldsa", "ctap-types/mldsa87", "trussed/mldsa87", "trussed-core/mldsa87"]
+
 log-all = []
 log-none = []
 log-trace = []
