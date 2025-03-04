@@ -7,12 +7,15 @@
 use littlefs2_core::path;
 use trussed::{
     backend::BackendId,
-    client::ClientBuilder,
+    pipe::{ServiceEndpoint, TrussedChannel},
     service::Service,
-    types::Location,
-    virt::{Platform, Ram, StoreProvider},
+    types::{CoreContext, Location},
+    virt::{Platform, StoreConfig},
 };
-use trussed_staging::virt::{BackendIds, Dispatcher};
+use trussed_staging::{
+    virt::{BackendIds, Dispatcher},
+    StagingContext,
+};
 use trussed_usbip::{Client, Syscall};
 
 const MANUFACTURER: &str = "Nitrokey";
@@ -26,23 +29,29 @@ struct FidoApp {
     fido: fido_authenticator::Authenticator<fido_authenticator::Conforming, VirtClient>,
 }
 
-impl<S: StoreProvider> trussed_usbip::Apps<'static, S, Dispatcher> for FidoApp {
+impl trussed_usbip::Apps<'static, Dispatcher> for FidoApp {
     type Data = ();
-    fn new(service: &mut Service<Platform<S>, Dispatcher>, syscall: Syscall, _data: ()) -> Self {
+    fn new(
+        _service: &mut Service<Platform, Dispatcher>,
+        endpoints: &mut Vec<ServiceEndpoint<'static, BackendIds, StagingContext>>,
+        syscall: Syscall,
+        _data: (),
+    ) -> Self {
         let large_blogs = Some(fido_authenticator::LargeBlobsConfig {
             location: Location::External,
             #[cfg(feature = "chunked")]
             max_size: 4096,
         });
 
-        let client = ClientBuilder::new(path!("fido"))
-            .backends(&[
-                BackendId::Core,
-                BackendId::Custom(BackendIds::StagingBackend),
-            ])
-            .prepare(service)
-            .expect("failed to create client")
-            .build(syscall);
+        static CHANNEL: TrussedChannel = TrussedChannel::new();
+        let (requester, responder) = CHANNEL.split().unwrap();
+        let context = CoreContext::new(path!("fido").into());
+        let backends = &[
+            BackendId::Core,
+            BackendId::Custom(BackendIds::StagingBackend),
+        ];
+        endpoints.push(ServiceEndpoint::new(responder, context, backends));
+        let client = Client::new(requester, syscall, None);
         FidoApp {
             fido: fido_authenticator::Authenticator::new(
                 client,
@@ -81,7 +90,7 @@ fn main() {
         vid: VID,
         pid: PID,
     };
-    trussed_usbip::Builder::new(Ram::default(), options)
+    trussed_usbip::Builder::new(StoreConfig::ram(), options)
         .dispatch(Dispatcher::default())
         .build::<FidoApp>()
         .exec(|_platform| {});
