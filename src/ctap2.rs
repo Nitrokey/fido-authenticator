@@ -75,6 +75,7 @@ impl<UP: UserPresence, T: TrussedRequirements> Authenticator for crate::Authenti
         };
         options.large_blobs = Some(self.config.supports_large_blobs());
         options.pin_uv_auth_token = Some(true);
+        options.make_cred_uv_not_rqd = Some(true);
 
         let mut transports = Vec::new();
         if self.config.nfc_transport {
@@ -1383,9 +1384,12 @@ impl<UP: UserPresence, T: TrussedRequirements> crate::Authenticator<UP, T> {
         }
 
         // 4. If authenticator is protected by som form of user verification, do it
-        //
-        // TODO: Should we should fail if `uv` is passed?
-        // Current thinking: no
+
+        // Reject uv = true as we do not support built-in user verification
+        if pin_auth.is_none() && options.as_ref().and_then(|options| options.uv) == Some(true) {
+            return Err(Error::InvalidOption);
+        }
+
         if self.state.persistent.pin_is_set() {
             // let mut uv_performed = false;
             if let Some(pin_auth) = pin_auth {
@@ -1406,8 +1410,8 @@ impl<UP: UserPresence, T: TrussedRequirements> crate::Authenticator<UP, T> {
                     return Err(Error::PinAuthInvalid);
                 }
             } else {
-                // 6. pinAuth not present + clientPin set --> error PinRequired
-                if self.state.persistent.pin_is_set() {
+                // 6. pinAuth not present + clientPin set + rk = true --> error PinRequired
+                if options.as_ref().and_then(|options| options.rk) == Some(true) {
                     return Err(Error::PinRequired);
                 }
             }
