@@ -6,7 +6,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Unreleased
 
--
+- Update dependencies:
+  - `heapless` v0.9
+  - `trussed-core` v0.2
 
 ## [v0.2.0](https://github.com/trussed-dev/fido-authenticator/releases/tag/v0.2.0) (2025-09-02)
 

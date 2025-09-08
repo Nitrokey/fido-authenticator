@@ -11,20 +11,20 @@ description = "FIDO authenticator Trussed app"
 [dependencies]
 apdu-app = { version = "0.1", optional = true }
 cbor-smol = "0.5"
-cosey = "0.3"
+cosey = "0.4"
 ctap-types = { version = "0.4", features = ["get-info-full", "large-blobs", "third-party-payment"] }
 ctaphid-app = { version = "0.1", optional = true }
 delog = "0.1"
-heapless = "0.7"
-heapless-bytes = "0.3"
-iso7816 = { version = "0.1.2", optional = true }
+heapless = "0.9"
+heapless-bytes = { version = "0.5", features = ["heapless-0.9"]}
+iso7816 = { version = "0.2", optional = true }
 littlefs2-core = "0.1"
 serde = { version = "1.0", default-features = false }
 serde_bytes = { version = "0.11.14", default-features = false }
 serde-indexed = "0.1"
 sha2 = { version = "0.10", default-features = false }
 trussed-chunked = { version = "0.2", optional = true }
-trussed-core = { version = "0.1", features = ["aes256-cbc", "certificate-client", "chacha8-poly1305", "crypto-client", "ed255", "filesystem-client", "hmac-sha256", "management-client", "p256", "sha256", "ui-client"] }
+trussed-core = { version = "0.2", features = ["aes256-cbc", "certificate-client", "chacha8-poly1305", "crypto-client", "ed255", "filesystem-client", "hmac-sha256", "management-client", "p256", "sha256", "ui-client"] }
 trussed-fs-info = "0.2"
 trussed-hkdf = "0.3"
 
@@ -60,7 +60,7 @@ hex-literal = "0.4.1"
 hmac = "0.12.1"
 interchange = "0.3"
 itertools = "0.14"
-littlefs2 = "0.6"
+littlefs2 = "0.7"
 log = "0.4.21"
 p256 = { version = "0.13.2", features = ["ecdh"] }
 rand = "0.8.4"
@@ -77,7 +77,17 @@ x509-parser = "0.16"
 features = ["chunked", "dispatch"]
 
 [patch.crates-io]
-trussed = { git = "https://github.com/trussed-dev/trussed.git", rev = "024e0eca5fb7dbd2457831f7c7bffe4341e08775" }
+trussed = { git = "https://github.com/trussed-dev/trussed.git", rev = "0b65280d69be541b8771f7756139826332c7d674" }
+trussed-fs-info = { git = "https://github.com/trussed-dev/trussed-staging.git", branch = "heapless-09" }
+trussed-hkdf = { git = "https://github.com/trussed-dev/trussed-staging.git", branch = "heapless-09" }
+trussed-manage = { git = "https://github.com/trussed-dev/trussed-staging.git", branch = "heapless-09" }
+trussed-chunked = { git = "https://github.com/trussed-dev/trussed-staging.git", branch = "heapless-09" }
+salty = { git = "https://github.com/ycrypto/salty.git", rev = "ae17f04ec965913e08032d266f6a47c001031f06" }
+ctaphid-app = { git = "https://github.com/trussed-dev/ctaphid-dispatch.git", branch = "heapless-0.9" }
+ctaphid-dispatch = { git = "https://github.com/trussed-dev/ctaphid-dispatch.git", branch = "heapless-0.9" }
+apdu-app = { git = "https://github.com/trussed-dev/apdu-dispatch.git", branch = "heapless-09" }
+usbd-ctaphid = { git = "https://github.com/trussed-dev/usbd-ctaphid.git", branch = "heapless-09" }
+ctap-types = { git = "https://github.com/sosthene-nitrokey/ctap-types", branch = "heapless-0.9" }
 
 [profile.test]
 opt-level = 2

@@ -10,7 +10,7 @@ cargo-fuzz = true
 [dependencies]
 ctap-types = { version = "0.4", features = ["arbitrary"] }
 libfuzzer-sys = "0.4"
-trussed = { version = "0.1", features = ["clients-1", "certificate-client", "crypto-client", "filesystem-client", "management-client", "aes256-cbc", "ed255", "p256", "sha256"] }
+trussed = { version = "0.1", features = ["certificate-client", "crypto-client", "filesystem-client", "management-client", "aes256-cbc", "ed255", "p256", "sha256"] }
 trussed-staging = { version = "0.3.0", features = ["chunked", "hkdf", "virt", "fs-info"] }
 
 [dependencies.fido-authenticator]
@@ -24,5 +24,14 @@ doc = false
 bench = false
 
 [patch.crates-io]
-trussed = { git = "https://github.com/trussed-dev/trussed.git", rev = "6bba8fde36d05c0227769eb63345744e87d84b2b" }
-trussed-staging = { git = "https://github.com/trussed-dev/trussed-staging.git", rev = "1e1ca03a3a62ea9b802f4070ea4bce002eeb4bec" }
+trussed = { git = "https://github.com/trussed-dev/trussed.git", rev = "1e7b09a983dc8ae64a7ad8401ce541a9a77e5939" }
+trussed-core = { git = "https://github.com/trussed-dev/trussed.git", rev = "1e7b09a983dc8ae64a7ad8401ce541a9a77e5939" }
+trussed-staging = { git = "https://github.com/trussed-dev/trussed-staging.git", rev = "eff09d1613641531630d962f81136f64f3dd2716" }
+trussed-chunked = { git = "https://github.com/trussed-dev/trussed-staging.git", rev = "eff09d1613641531630d962f81136f64f3dd2716" }
+
+
+littlefs2 = { git = "https://github.com/trussed-dev/littlefs2.git", rev = "e9d3a1ca98f80e92cd20ee9b94707067810b9036" }
+littlefs2-core = { git = "https://github.com/trussed-dev/littlefs2.git", rev = "e9d3a1ca98f80e92cd20ee9b94707067810b9036" }
+littlefs2-sys = { git = "https://github.com/trussed-dev/littlefs2-sys", rev = "v0.3.1-nitrokey.1" }
+salty = { git = "https://github.com/ycrypto/salty.git", rev = "ae17f04ec965913e08032d266f6a47c001031f06" }
+ctap-types = { git = "https://github.com/trussed-dev/ctap-types", rev = "cff44662b48088511fa8ae30557c457f8252f220"}
